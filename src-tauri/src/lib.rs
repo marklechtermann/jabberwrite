@@ -8,6 +8,7 @@ mod overlay;
 mod paste;
 mod permissions;
 mod stt;
+mod update;
 
 use std::sync::Arc;
 
@@ -63,6 +64,8 @@ pub fn run() {
             handle.state::<Arc<App>>().show_settings();
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             app::app_info,
             app::save_shortcut,
@@ -75,6 +78,8 @@ pub fn run() {
             app::open_url,
             app::permissions,
             app::open_permission_settings,
+            update::check_update,
+            update::install_update,
         ])
         .setup(move |tauri_app| {
             #[cfg(target_os = "macos")]
@@ -102,6 +107,13 @@ pub fn run() {
                     &status,
                     &PredefinedMenuItem::separator(&handle)?,
                     &MenuItem::with_id(&handle, "settings", "Settings…", true, None::<&str>)?,
+                    &MenuItem::with_id(
+                        &handle,
+                        "update",
+                        "Check for Updates…",
+                        true,
+                        None::<&str>,
+                    )?,
                     &MenuItem::with_id(&handle, "quit", "Quit", true, None::<&str>)?,
                 ],
             )?;
@@ -110,6 +122,10 @@ pub fn run() {
                 .menu(&menu)
                 .on_menu_event(|handle, event| match event.id().as_ref() {
                     "settings" => handle.state::<Arc<App>>().show_settings(),
+                    "update" => {
+                        let app = handle.state::<Arc<App>>().inner().clone();
+                        tauri::async_runtime::spawn(update::check_with_dialogs(app));
+                    }
                     "quit" => handle.exit(0),
                     _ => {}
                 })
