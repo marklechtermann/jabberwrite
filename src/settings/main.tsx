@@ -16,6 +16,7 @@ type AppInfo = {
   status: string;
   shortcut: string;
   platform: string;
+  update: UpdateStatus;
 };
 
 type HistoryEntry = { time: string; text: string };
@@ -37,6 +38,11 @@ function HistoryItem({ entry }: { entry: HistoryEntry }) {
     </li>
   );
 }
+
+type UpdateStatus =
+  | { kind: "idle" | "checking" | "up_to_date" | "installing" }
+  | { kind: "available"; version: string }
+  | { kind: "error"; message: string };
 
 type Permissions = {
   microphone: boolean;
@@ -138,6 +144,34 @@ function PermissionRow({ label, kind, granted }: { label: string; kind: string; 
   );
 }
 
+function UpdateSection({ status }: { status: UpdateStatus }) {
+  const busy = status.kind === "checking" || status.kind === "installing";
+  return (
+    <section>
+      <h2>Updates</h2>
+      <div className="row">
+        <span className={status.kind === "error" ? "error" : ""}>
+          {status.kind === "checking" && "Checking for updates…"}
+          {status.kind === "up_to_date" && "Jabberwrite is up to date."}
+          {status.kind === "available" && `Version ${status.version} is available.`}
+          {status.kind === "installing" && "Installing the update. Jabberwrite will restart."}
+          {status.kind === "error" && status.message}
+        </span>
+      </div>
+      <div className="row">
+        <button disabled={busy} onClick={() => invoke("check_update")}>
+          Check for updates
+        </button>
+        {status.kind === "available" && (
+          <button disabled={busy} onClick={() => invoke("install_update").catch(() => {})}>
+            Install and restart
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function Settings() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [perms, setPerms] = useState<Permissions | null>(null);
@@ -155,10 +189,12 @@ function Settings() {
     refresh();
     const unlistenStatus = listen<string>("status", (e) => setInfo((i) => i && { ...i, status: e.payload }));
     const unlistenHistory = listen<HistoryEntry>("history", (e) => setHistory((h) => [e.payload, ...h]));
+    const unlistenUpdate = listen<UpdateStatus>("update", (e) => setInfo((i) => i && { ...i, update: e.payload }));
     const unlistenFocus = getCurrentWindow().onFocusChanged(({ payload }) => payload && refresh());
     return () => {
       unlistenStatus.then((f) => f());
       unlistenHistory.then((f) => f());
+      unlistenUpdate.then((f) => f());
       unlistenFocus.then((f) => f());
     };
   }, []);
@@ -253,6 +289,8 @@ function Settings() {
           <button onClick={() => invoke("open_path", { kind: "logs" })}>Open folder</button>
         </div>
       </section>
+
+      <UpdateSection status={info.update} />
 
       <section>
         <h2>About</h2>

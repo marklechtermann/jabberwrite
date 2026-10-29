@@ -20,6 +20,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The updater refuses unsigned updates, so a placeholder key would ship unusable releases (ADR 0005).
+      - name: Check updater public key
+        shell: bash
+        run: |
+          if grep -q REPLACE_WITH_PUBLIC_KEY src-tauri/tauri.conf.json; then
+            echo "::error::Set the updater public key in src-tauri/tauri.conf.json (see ADR 0005)"
+            exit 1
+          fi
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY is not set (see ADR 0005)"
+            exit 1
+          fi
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
       # MAJOR.MINOR from Cargo.toml, PATCH = run number (ADR 0004).
       - id: version
         run: |
@@ -80,13 +95,45 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JABBERWRITE_RELEASE: "1"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --config src-tauri/tauri.release.conf.json
+          updaterJsonPreferNsis: true
+          # All matrix jobs merge into one latest.json and can collide; see the check in publish-release.
+          retryAttempts: 2
 
   publish-release:
     needs: [create-release, build]
     runs-on: ubuntu-latest
     steps:
+      # Concurrent jobs can overwrite each other's entries in latest.json. Never publish an
+      # incomplete one: installed apps would silently see no update for the missing platform.
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const release_id = ${{ needs.create-release.outputs.release_id }};
+            const { data: assets } = await github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id,
+              per_page: 100,
+            });
+            const asset = assets.find((a) => a.name === "latest.json");
+            if (!asset) core.setFailed("latest.json is missing from the release");
+            else {
+              const res = await github.request("GET /repos/{owner}/{repo}/releases/assets/{asset_id}", {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id,
+                headers: { accept: "application/octet-stream" },
+              });
+              const platforms = Object.keys(JSON.parse(Buffer.from(res.data).toString()).platforms);
+              const missing = ["windows-x86_64", "linux-x86_64", "darwin-aarch64"].filter((p) => !platforms.includes(p));
+              if (missing.length) core.setFailed(`latest.json lacks platforms: ${missing.join(", ")}. Re-run the failed build jobs.`);
+            }
+
       - uses: actions/github-script@v7
         with:
           script: |

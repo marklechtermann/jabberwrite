@@ -29,7 +29,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis", "dmg", "app", "appimage", "deb"],
+    "targets": ["nsis", "dmg", "app", "appimage", "deb"],
     "category": "Productivity",
     "shortDescription": "Voice-to-text dictation for agentic coding",
     "license": "MIT OR Apache-2.0",
@@ -42,6 +42,20 @@
     ],
     "macOS": {
       "minimumSystemVersion": "11.0"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVFMjk5REE0QTM2MDlGQzkKUldUSm4yQ2pwSjBwWGloOEdNMitXSWJDS0tSeDVLSXQxZ2xOTDg4dG9sbnNFMFc1YjVaeEU4L0kK",
+      "endpoints": ["https://github.com/marklechtermann/jabberwrite/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

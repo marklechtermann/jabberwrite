@@ -1,6 +1,7 @@
 //! Application state machine: idle → recording → processing → idle.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -15,6 +16,7 @@ use crate::history::{Entry, History};
 use crate::keys::Shortcut;
 use crate::paste::Clipboard;
 use crate::stt::Engine;
+use crate::update;
 use crate::{overlay, paste};
 
 /// Recordings shorter than this are treated as accidental taps.
@@ -47,6 +49,8 @@ pub struct App {
     clipboard: Mutex<Option<Clipboard>>,
     status: Mutex<String>,
     tray: OnceLock<(TrayIcon, MenuItem<Wry>)>,
+    pub update: update::State,
+    updating: AtomicBool,
 }
 
 impl App {
@@ -68,12 +72,37 @@ impl App {
             clipboard: Mutex::new(None),
             status: Mutex::new("Starting".into()),
             tray: OnceLock::new(),
+            update: update::State::default(),
+            updating: AtomicBool::new(false),
         }
     }
 
     pub fn set_tray(&self, tray: TrayIcon, status_item: MenuItem<Wry>) {
         let _ = self.tray.set((tray, status_item));
         self.set_status(&self.status());
+    }
+
+    pub fn hide_tray(&self) {
+        if let Some((tray, _)) = self.tray.get() {
+            let _ = tray.set_visible(false);
+        }
+    }
+
+    /// Claim the app for an update: refused while dictating or while another update runs.
+    /// The hotkey is ignored until `end_update`.
+    pub fn begin_update(&self) -> Result<(), String> {
+        let phase = self.phase.lock().unwrap();
+        if matches!(*phase, Phase::Recording | Phase::Processing) {
+            return Err("Finish the current dictation before updating.".into());
+        }
+        self.updating
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .map(|_| ())
+            .map_err(|_| "An update is already being installed.".to_string())
+    }
+
+    pub fn end_update(&self) {
+        self.updating.store(false, Ordering::SeqCst);
     }
 
     pub fn status(&self) -> String {
@@ -117,6 +146,9 @@ impl App {
     /// Hotkey handler. Never call on the hook thread; it may block briefly.
     pub fn toggle(self: &Arc<Self>) {
         let mut phase = self.phase.lock().unwrap();
+        if self.updating.load(Ordering::SeqCst) {
+            return;
+        }
         match *phase {
             Phase::Idle => match Recording::start() {
                 Ok(rec) => {
@@ -238,6 +270,7 @@ pub struct AppInfo {
     status: String,
     shortcut: String,
     platform: &'static str,
+    update: update::Status,
 }
 
 type State<'a> = tauri::State<'a, Arc<App>>;
@@ -255,6 +288,7 @@ pub fn app_info(app: State) -> AppInfo {
         status: app.status(),
         shortcut: app.config.lock().unwrap().shortcut.clone(),
         platform: std::env::consts::OS,
+        update: app.update.status(),
     }
 }
 

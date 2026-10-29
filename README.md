@@ -12,6 +12,10 @@ Runs fully offline after a one-time model download (~490 MB).
 
 Change the shortcut via tray → **Settings…**.
 
+### Updating
+
+Updates are checked only when you ask: tray → **Check for Updates…**, or **Settings… → Updates**. If a newer release exists, Jabberwrite offers to install it and restarts itself. Updates are signed; the app rejects anything not signed with the project key. Builds from before this feature (and the old `.msi`) must be updated by hand once, using the NSIS installer.
+
 ### Platform notes
 
 - **macOS:** builds are unsigned. Right-click the app → Open on first launch. Grant Microphone, Input Monitoring and Accessibility permissions, then restart the app.
@@ -58,6 +62,18 @@ npm run tauri dev      # run the app
 npm run tauri build    # build installers
 cd src-tauri && cargo test
 ```
+
+### Releasing
+
+Release builds sign their updates (ADR 0005). One-time setup:
+
+```sh
+npm run tauri signer generate -- -w ~/.tauri/jabberwrite.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/jabberwrite.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD   # only if you set a password
+```
+
+Paste the printed public key into `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Keep a backup of the private key: without it, installed apps can never update again.
 
 Planning lives in [`docs/`](docs/) (ideas, specs, ADRs); see [AGENTS.md](AGENTS.md).
 
