@@ -172,17 +172,42 @@ function UpdateSection({ status }: { status: UpdateStatus }) {
   );
 }
 
+type Topic = "general" | "history" | "permissions" | "updates" | "about";
+
+const TOPICS: { id: Topic; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "history", label: "History" },
+  { id: "permissions", label: "Permissions" },
+  { id: "updates", label: "Updates" },
+  { id: "about", label: "About" },
+];
+
+const permsMissing = (p: Permissions) => !(p.microphone && p.input_monitoring && p.accessibility);
+
 function Settings() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [perms, setPerms] = useState<Permissions | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [topic, setTopic] = useState<Topic>("general");
+  const initialTopicChosen = useRef(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const refresh = () => {
     invoke<AppInfo>("app_info").then(setInfo);
-    invoke<Permissions | null>("permissions").then(setPerms);
+    invoke<Permissions | null>("permissions").then((p) => {
+      setPerms(p);
+      if (!initialTopicChosen.current) {
+        initialTopicChosen.current = true;
+        if (p && permsMissing(p)) setTopic("permissions");
+      }
+    });
     invoke<HistoryEntry[]>("history").then(setHistory);
+  };
+
+  const selectTopic = (t: Topic) => {
+    setTopic(t);
+    setMessage(null);
   };
 
   useEffect(() => {
@@ -220,94 +245,129 @@ function Settings() {
       .then(() => setHistory([]))
       .catch((e) => setMessage({ text: String(e), error: true }));
 
+  const topics = TOPICS.filter((t) => t.id !== "permissions" || perms);
+
   return (
-    <main>
-      <h1>Jabberwrite</h1>
-      <p className="muted">Status: {info.status}</p>
+    <div className="app">
+      <header>
+        <h1>Jabberwrite</h1>
+        <span className="muted">Status: {info.status}</span>
+      </header>
+      {info.config_error && <p className="error banner">Config file is invalid, using defaults: {info.config_error}</p>}
 
-      {info.config_error && <p className="error">Config file is invalid, using defaults: {info.config_error}</p>}
+      <div className="body">
+        <nav>
+          {topics.map((t) => (
+            <button
+              key={t.id}
+              className={t.id === topic ? "active" : ""}
+              aria-current={t.id === topic ? "page" : undefined}
+              onClick={() => selectTopic(t.id)}
+            >
+              {t.label}
+              {t.id === "permissions" && perms && permsMissing(perms) && " ⚠️"}
+            </button>
+          ))}
+        </nav>
 
-      {perms && !(perms.microphone && perms.input_monitoring && perms.accessibility) && (
-        <section>
-          <h2>Permissions</h2>
-          <p className="muted">Jabberwrite needs these permissions. Restart the app after granting them.</p>
-          <PermissionRow label="Microphone" kind="microphone" granted={perms.microphone} />
-          <PermissionRow label="Input Monitoring (shortcut)" kind="input_monitoring" granted={perms.input_monitoring} />
-          <PermissionRow label="Accessibility (paste)" kind="accessibility" granted={perms.accessibility} />
-        </section>
-      )}
+        <main>
+          {message && <p className={message.error ? "error" : "muted"}>{message.text}</p>}
 
-      <section>
-        <h2>Shortcut</h2>
-        <p className="muted">Press once to start recording, again to stop.</p>
-        <ShortcutField value={info.shortcut} mac={mac} onSave={saveShortcut} />
-        {message && <p className={message.error ? "error" : "muted"}>{message.text}</p>}
-      </section>
+          {topic === "general" && (
+            <section>
+              <h2>Shortcut</h2>
+              <p className="muted">Press once to start recording, again to stop.</p>
+              <ShortcutField value={info.shortcut} mac={mac} onSave={saveShortcut} />
+            </section>
+          )}
 
-      <section>
-        <h2>History</h2>
-        <p className="muted">Every recognized text is logged, so you can copy it again if pasting failed.</p>
-        <div className="row">
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={info.clear_history_on_exit}
-              onChange={(e) => saveClearOnExit(e.target.checked)}
-            />
-            Clear history when Jabberwrite quits
-          </label>
-          <button onClick={clearHistory} disabled={history.length === 0}>
-            Clear history
-          </button>
-        </div>
-        {history.length === 0 ? (
-          <p className="muted">No recognized text yet.</p>
-        ) : (
-          <ul className="history">
-            {history.map((entry, i) => (
-              <HistoryItem key={`${entry.time}-${i}`} entry={entry} />
-            ))}
-          </ul>
-        )}
-        <label>History file</label>
-        <div className="row">
-          <code className="path">{info.history_path}</code>
-          <button onClick={() => invoke("open_path", { kind: "history" })}>Open folder</button>
-        </div>
-      </section>
+          {topic === "history" && (
+            <section>
+              <h2>History</h2>
+              <p className="muted">Every recognized text is logged, so you can copy it again if pasting failed.</p>
+              <div className="row">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={info.clear_history_on_exit}
+                    onChange={(e) => saveClearOnExit(e.target.checked)}
+                  />
+                  Clear history when Jabberwrite quits
+                </label>
+                <button onClick={clearHistory} disabled={history.length === 0}>
+                  Clear history
+                </button>
+              </div>
+              {history.length === 0 ? (
+                <p className="muted">No recognized text yet.</p>
+              ) : (
+                <ul className="history">
+                  {history.map((entry, i) => (
+                    <HistoryItem key={`${entry.time}-${i}`} entry={entry} />
+                  ))}
+                </ul>
+              )}
+              <label>History file</label>
+              <div className="row">
+                <code className="path">{info.history_path}</code>
+                <button onClick={() => invoke("open_path", { kind: "history" })}>Open folder</button>
+              </div>
+            </section>
+          )}
 
-      <section>
-        <h2>Files</h2>
-        <label>Config file</label>
-        <div className="row">
-          <code className="path">{info.config_path}</code>
-          <button onClick={() => invoke("open_path", { kind: "config" })}>Open folder</button>
-        </div>
-        <label>Logs</label>
-        <div className="row">
-          <code className="path">{info.log_dir}</code>
-          <button onClick={() => invoke("open_path", { kind: "logs" })}>Open folder</button>
-        </div>
-      </section>
+          {topic === "permissions" && perms && (
+            <section>
+              <h2>Permissions</h2>
+              <p className="muted">Jabberwrite needs these permissions. Restart the app after granting them.</p>
+              <PermissionRow label="Microphone" kind="microphone" granted={perms.microphone} />
+              <PermissionRow
+                label="Input Monitoring (shortcut)"
+                kind="input_monitoring"
+                granted={perms.input_monitoring}
+              />
+              <PermissionRow label="Accessibility (paste)" kind="accessibility" granted={perms.accessibility} />
+            </section>
+          )}
 
-      <UpdateSection status={info.update} />
+          {topic === "updates" && <UpdateSection status={info.update} />}
 
-      <section>
-        <h2>About</h2>
-        <p>
-          Version <code>{info.version}</code>
-        </p>
-        <p>
-          <Link href={info.repo_url}>{info.repo_url}</Link>
-        </p>
-        <p className="muted">
-          Speech recognition: <Link href="https://github.com/Oruk-AI/orukeet">Orukeet</Link>, based on{" "}
-          <Link href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3">NVIDIA Parakeet TDT 0.6B v3</Link>. Model
-          weights licensed under <Link href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</Link>.
-          Runtime: <Link href="https://github.com/k2-fsa/sherpa-onnx">sherpa-onnx</Link>.
-        </p>
-      </section>
-    </main>
+          {topic === "about" && (
+            <>
+              <section>
+                <h2>About</h2>
+                <p>
+                  Version <code>{info.version}</code>
+                </p>
+                <p>
+                  <Link href={info.repo_url}>{info.repo_url}</Link>
+                </p>
+                <p className="muted">
+                  Speech recognition: <Link href="https://github.com/Oruk-AI/orukeet">Orukeet</Link>, based on{" "}
+                  <Link href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3">NVIDIA Parakeet TDT 0.6B v3</Link>.
+                  Model weights licensed under{" "}
+                  <Link href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</Link>. Runtime:{" "}
+                  <Link href="https://github.com/k2-fsa/sherpa-onnx">sherpa-onnx</Link>.
+                </p>
+              </section>
+
+              <section>
+                <h2>Files</h2>
+                <label>Config file</label>
+                <div className="row">
+                  <code className="path">{info.config_path}</code>
+                  <button onClick={() => invoke("open_path", { kind: "config" })}>Open folder</button>
+                </div>
+                <label>Logs</label>
+                <div className="row">
+                  <code className="path">{info.log_dir}</code>
+                  <button onClick={() => invoke("open_path", { kind: "logs" })}>Open folder</button>
+                </div>
+              </section>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
   );
 }
 
