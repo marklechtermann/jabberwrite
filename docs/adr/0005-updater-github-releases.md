@@ -42,7 +42,7 @@ Use `tauri-plugin-updater`, fed by `https://github.com/marklechtermann/jabberwri
 - One-time setup by the maintainer: generate the key pair, put the public key into `tauri.conf.json`, add the secrets. Until then releases fail by design.
 - Versions without the updater (up to 0.1.x of this first release) must be updated by hand once.
 - The old MSI users must switch to the NSIS installer once.
-- macOS: builds are unsigned (ad-hoc signed), so macOS ties the Microphone, Input Monitoring and Accessibility grants to the exact binary. After an update the user may have to grant them again; the Settings window opens and says so (existing behaviour). Code signing (see `docs/ideas/code-signing.md`) fixes this.
+- macOS: builds are unsigned (ad-hoc signed), so macOS ties the Microphone, Input Monitoring and Accessibility grants to the exact binary. After an update the user may have to grant them again; the Settings window opens and says so (existing behaviour). Code signing (see `docs/ideas.md`) fixes this.
 - Linux: `.deb` installs update through `pkexec` where the updater supports it; AppImage updates in place. A `.deb` user without a polkit agent gets an error and can install by hand.
 - Antivirus software may object to an unsigned installer launched from a temp directory. Windows SmartScreen does not apply: the app downloads the file itself, so it carries no Mark-of-the-Web.
 - Adds `tauri-plugin-updater` and `tauri-plugin-dialog` (and their dependency trees) to the app.

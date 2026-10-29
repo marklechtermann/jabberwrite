@@ -81,7 +81,7 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD   # only if you set a password
 
 Paste the printed public key into `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Keep a backup of the private key: without it, installed apps can never update again.
 
-Planning lives in [`docs/`](docs/) (ideas, specs, ADRs); see [AGENTS.md](AGENTS.md).
+Planning lives in [`docs/`](docs/) ([ideas](docs/ideas.md), specs, ADRs); see [AGENTS.md](AGENTS.md).
 
 ## Credits
 

@@ -16,16 +16,16 @@ No code yet. No tech stack, build, lint or test commands exist. Once they do, ad
 
 ## Workflow: ideas → specs → ADRs → code
 
-All planning lives in `docs/`, one file per item, written in English. Templates are in `docs/templates/`.
+All planning lives in `docs/`, written in English. Specs and ADRs are one file per item; ideas are a single collection file. Templates for specs and ADRs are in `docs/templates/`.
 
-| Directory      | Holds                                    | Naming                 |
+| Path           | Holds                                    | Naming                 |
 | -------------- | ---------------------------------------- | ---------------------- |
-| `docs/ideas/`  | Inbox of raw ideas, no ceremony          | `slug.md` (no number)  |
+| `docs/ideas.md`| Single inbox of raw ideas, no ceremony   | one `##` section per idea |
 | `docs/specs/`  | What to build, ready for implementation  | `NNNN-slug.md`         |
 | `docs/adr/`    | Why we chose X over Y                    | `NNNN-slug.md`         |
 
-1. **Idea.** Anyone (human or agent) may add an idea to `docs/ideas/` at any time. When the user mentions an idea in passing, capture it there.
-2. **Spec.** Only the user decides that an idea becomes a spec. Agents may draft the spec when asked, but never promote an idea on their own. On promotion, create `docs/specs/NNNN-slug.md` and delete the idea file.
+1. **Idea.** Anyone (human or agent) may add an idea to `docs/ideas.md` at any time as a new `##` section with a few sentences. Never create one file per idea. When the user mentions an idea in passing, capture it there.
+2. **Spec.** Only the user decides that an idea becomes a spec. Agents may draft the spec when asked, but never promote an idea on their own. On promotion, create `docs/specs/NNNN-slug.md` and remove the idea's section from `docs/ideas.md`: once an idea is formulated as a spec, it no longer lives in the ideas file. Also remove ideas that are already implemented.
 3. **ADR.** When a spec requires a real decision (engine, language, library, architecture), record it as an ADR. ADRs are never edited after acceptance except to set `status: superseded by NNNN`; a changed decision gets a new ADR.
 4. **Implementation.** One spec per branch, named `spec/NNNN-slug`, merged through a PR that references the spec. Keep the spec's task checklist and `status` up to date while working.
 
@@ -35,4 +35,4 @@ All planning lives in `docs/`, one file per item, written in English. Templates 
 - Before implementing, read the spec and every ADR it links. Do not reopen decisions recorded in an accepted ADR; propose a new ADR instead.
 - Numbers are sequential per directory. Take the next free number on `main` at the time you create the file.
 - When working in parallel with other agents, use a separate git worktree per spec branch.
-- Stay within the spec's scope. Anything new you notice goes into `docs/ideas/`, not into the current branch.
+- Stay within the spec's scope. Anything new you notice goes into `docs/ideas.md`, not into the current branch.

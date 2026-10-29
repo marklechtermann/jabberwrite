@@ -68,7 +68,7 @@ Press a global shortcut, speak, press it again, and the transcribed text is plac
 
 ## Out of scope
 
-Wayland, push-to-talk, GPU acceleration, microphone picker, language setting, launch at login, sound cues, recording-length limit, text post-processing, code signing / notarization, auto-updater, macOS onboarding wizard, macOS x64 and Windows arm64 builds. See `docs/ideas/`.
+Wayland, push-to-talk, GPU acceleration, microphone picker, language setting, launch at login, sound cues, recording-length limit, text post-processing, code signing / notarization, auto-updater, macOS onboarding wizard, macOS x64 and Windows arm64 builds. See `docs/ideas.md`.
 
 ## Tasks
 
