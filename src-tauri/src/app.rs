@@ -277,16 +277,17 @@ type State<'a> = tauri::State<'a, Arc<App>>;
 
 #[tauri::command]
 pub fn app_info(app: State) -> AppInfo {
+    let config = app.config.lock().unwrap().clone();
     AppInfo {
         version: crate::VERSION,
         repo_url: crate::REPO_URL,
         config_path: app.paths.config.display().to_string(),
         log_dir: app.paths.logs.display().to_string(),
         history_path: app.paths.history.display().to_string(),
-        clear_history_on_exit: app.config.lock().unwrap().clear_history_on_exit,
+        clear_history_on_exit: config.clear_history_on_exit,
         config_error: app.config_error.clone(),
         status: app.status(),
-        shortcut: app.config.lock().unwrap().shortcut.clone(),
+        shortcut: config.shortcut,
         platform: std::env::consts::OS,
         update: app.update.status(),
     }
