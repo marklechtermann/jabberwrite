@@ -53,6 +53,15 @@ pub fn set_paused(paused: bool) {
     }
 }
 
+/// Forget held keys when the platform hook may have missed key-ups
+/// (e.g. while the Windows lock screen was active).
+#[cfg(target_os = "windows")]
+fn reset() {
+    if let Some(hook) = HOOK.get() {
+        hook.matcher.lock().unwrap().reset();
+    }
+}
+
 /// Called by the platform hook for every key event. Must return quickly.
 fn dispatch(key: Key, pressed: bool) {
     let Some(hook) = HOOK.get() else { return };

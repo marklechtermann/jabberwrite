@@ -169,6 +169,14 @@ impl Matcher {
         self.spoiled = false;
     }
 
+    /// Forget all held keys, e.g. after the hook missed key-ups.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    pub fn reset(&mut self) {
+        self.held.clear();
+        self.armed = false;
+        self.spoiled = false;
+    }
+
     fn held_mods(&self) -> u8 {
         self.held
             .iter()
@@ -282,6 +290,24 @@ mod tests {
         let mut m = Matcher::new(Shortcut::parse("Ctrl+Super").unwrap());
         press(&mut m, &[Key::Ctrl]);
         assert!(!release(&mut m, &[Key::Ctrl]));
+    }
+
+    #[test]
+    fn reset_recovers_from_missed_key_ups() {
+        // Win+L locks the screen; the key-ups never reach the hook.
+        let mut m = Matcher::new(Shortcut::parse("Ctrl+Super").unwrap());
+        press(&mut m, &[Key::Super, Key::Char('L')]);
+        press(&mut m, &[Key::Ctrl, Key::Super]);
+        assert!(!release(&mut m, &[Key::Super, Key::Ctrl]));
+        m.reset();
+        press(&mut m, &[Key::Ctrl, Key::Super]);
+        assert!(release(&mut m, &[Key::Super, Key::Ctrl]));
+        // Ctrl+Alt+Del leaves a stale extra modifier behind.
+        let mut m = Matcher::new(Shortcut::parse("Ctrl+Super").unwrap());
+        press(&mut m, &[Key::Ctrl, Key::Alt]);
+        m.reset();
+        press(&mut m, &[Key::Ctrl, Key::Super]);
+        assert!(release(&mut m, &[Key::Super, Key::Ctrl]));
     }
 
     #[test]
