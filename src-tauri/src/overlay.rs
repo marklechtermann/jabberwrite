@@ -3,7 +3,11 @@
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
 const LABEL: &str = "overlay";
-const SIZE: f64 = 56.0;
+// Windows enforces a minimum window width (~130 px), which stretched the badge
+// into an ellipse. The window is therefore larger than the badge; the badge is
+// drawn centered at BADGE size (see overlay.css) on a transparent background.
+const SIZE: f64 = 160.0;
+const BADGE: f64 = 56.0;
 const BOTTOM_MARGIN: f64 = 80.0;
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
@@ -34,7 +38,8 @@ pub fn show(app: &AppHandle, state: &str) {
         let (pos, size) = (monitor.position(), monitor.size());
         let win = SIZE * scale;
         let x = pos.x as f64 + (size.width as f64 - win) / 2.0;
-        let y = pos.y as f64 + size.height as f64 - win - BOTTOM_MARGIN * scale;
+        let inset = (SIZE - BADGE) / 2.0;
+        let y = pos.y as f64 + size.height as f64 - win - (BOTTOM_MARGIN - inset) * scale;
         let _ = window.set_position(PhysicalPosition::new(x as i32, y as i32));
     }
     let _ = window.show();
