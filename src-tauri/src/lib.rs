@@ -1,6 +1,7 @@
 mod app;
 mod audio;
 mod config;
+mod history;
 mod hotkey;
 mod keys;
 mod overlay;
@@ -27,6 +28,7 @@ fn paths() -> Paths {
         config: base.config_dir().join("jabberwrite").join("config.json"),
         logs: data.join("logs"),
         models: data.join("models"),
+        history: data.join("history.jsonl"),
     }
 }
 
@@ -66,6 +68,10 @@ pub fn run() {
             app::save_shortcut,
             app::set_hotkey_paused,
             app::open_path,
+            app::history,
+            app::clear_history,
+            app::copy_text,
+            app::save_clear_history_on_exit,
             app::open_url,
             app::permissions,
             app::open_permission_settings,
@@ -137,6 +143,11 @@ pub fn run() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running jabberwrite");
+        .build(tauri::generate_context!())
+        .expect("error while building jabberwrite")
+        .run(|handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                handle.state::<Arc<App>>().clear_history_if_configured();
+            }
+        });
 }

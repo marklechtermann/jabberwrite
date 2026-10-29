@@ -10,11 +10,33 @@ type AppInfo = {
   repo_url: string;
   config_path: string;
   log_dir: string;
+  history_path: string;
+  clear_history_on_exit: boolean;
   config_error: string | null;
   status: string;
   shortcut: string;
   platform: string;
 };
+
+type HistoryEntry = { time: string; text: string };
+
+function HistoryItem({ entry }: { entry: HistoryEntry }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () =>
+    invoke("copy_text", { text: entry.text }).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  return (
+    <li className="history-item">
+      <div className="history-head">
+        <span className="muted">{new Date(entry.time).toLocaleString()}</span>
+        <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+      </div>
+      <div className="history-text">{entry.text}</div>
+    </li>
+  );
+}
 
 type Permissions = {
   microphone: boolean;
@@ -121,17 +143,22 @@ function Settings() {
   const [perms, setPerms] = useState<Permissions | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
   const refresh = () => {
     invoke<AppInfo>("app_info").then(setInfo);
     invoke<Permissions | null>("permissions").then(setPerms);
+    invoke<HistoryEntry[]>("history").then(setHistory);
   };
 
   useEffect(() => {
     refresh();
     const unlistenStatus = listen<string>("status", (e) => setInfo((i) => i && { ...i, status: e.payload }));
+    const unlistenHistory = listen<HistoryEntry>("history", (e) => setHistory((h) => [e.payload, ...h]));
     const unlistenFocus = getCurrentWindow().onFocusChanged(({ payload }) => payload && refresh());
     return () => {
       unlistenStatus.then((f) => f());
+      unlistenHistory.then((f) => f());
       unlistenFocus.then((f) => f());
     };
   }, []);
@@ -145,6 +172,16 @@ function Settings() {
         setInfo({ ...info, shortcut: saved });
         setMessage({ text: `Shortcut set to ${saved}`, error: false });
       })
+      .catch((e) => setMessage({ text: String(e), error: true }));
+
+  const saveClearOnExit = (enabled: boolean) =>
+    invoke("save_clear_history_on_exit", { enabled })
+      .then(() => setInfo({ ...info, clear_history_on_exit: enabled }))
+      .catch((e) => setMessage({ text: String(e), error: true }));
+
+  const clearHistory = () =>
+    invoke("clear_history")
+      .then(() => setHistory([]))
       .catch((e) => setMessage({ text: String(e), error: true }));
 
   return (
@@ -169,6 +206,38 @@ function Settings() {
         <p className="muted">Press once to start recording, again to stop.</p>
         <ShortcutField value={info.shortcut} mac={mac} onSave={saveShortcut} />
         {message && <p className={message.error ? "error" : "muted"}>{message.text}</p>}
+      </section>
+
+      <section>
+        <h2>History</h2>
+        <p className="muted">Every recognized text is logged, so you can copy it again if pasting failed.</p>
+        <div className="row">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={info.clear_history_on_exit}
+              onChange={(e) => saveClearOnExit(e.target.checked)}
+            />
+            Clear history when Jabberwrite quits
+          </label>
+          <button onClick={clearHistory} disabled={history.length === 0}>
+            Clear history
+          </button>
+        </div>
+        {history.length === 0 ? (
+          <p className="muted">No recognized text yet.</p>
+        ) : (
+          <ul className="history">
+            {history.map((entry, i) => (
+              <HistoryItem key={`${entry.time}-${i}`} entry={entry} />
+            ))}
+          </ul>
+        )}
+        <label>History file</label>
+        <div className="row">
+          <code className="path">{info.history_path}</code>
+          <button onClick={() => invoke("open_path", { kind: "history" })}>Open folder</button>
+        </div>
       </section>
 
       <section>
