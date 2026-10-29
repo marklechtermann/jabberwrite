@@ -1,8 +1,14 @@
 # Jabberwrite
 
-Voice-to-text dictation for agentic coding. Press a shortcut, speak, press it again: the text lands in your clipboard and is pasted into the focused window.
+**Talk to your coding agent instead of typing.** Press a shortcut, speak your prompt, press it again: the text is pasted into whatever window has focus.
 
-Runs fully offline after a one-time model download (~490 MB).
+![Jabberwrite dictating into a coding agent; the small badge at the bottom shows that it is recording](assets/screenshot.png)
+
+- **Built for agentic workflows.** Long, detailed prompts are faster to say than to type. Works with any terminal, editor or chat box.
+- **Dead simple.** One shortcut, a tray icon, a tiny badge while recording. No accounts, no cloud, no bells and whistles.
+- **Multilingual.** 25 languages, no language setting needed. Switch languages from one prompt to the next.
+- **Fast and private.** Runs fully offline on your machine after a one-time model download (~490 MB).
+- **Windows, macOS and Linux.**
 
 ## Usage
 
