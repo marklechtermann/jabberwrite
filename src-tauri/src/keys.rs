@@ -223,12 +223,21 @@ impl Matcher {
 mod tests {
     use super::*;
 
+    // Feeds every key (no short-circuiting) and reports whether any fired.
+    fn feed(m: &mut Matcher, keys: &[Key], down: bool) -> bool {
+        let mut fired = false;
+        for k in keys {
+            fired |= m.on_key(*k, down);
+        }
+        fired
+    }
+
     fn press(m: &mut Matcher, keys: &[Key]) -> bool {
-        keys.iter().fold(false, |f, k| m.on_key(*k, true) || f)
+        feed(m, keys, true)
     }
 
     fn release(m: &mut Matcher, keys: &[Key]) -> bool {
-        keys.iter().fold(false, |f, k| m.on_key(*k, false) || f)
+        feed(m, keys, false)
     }
 
     #[test]
