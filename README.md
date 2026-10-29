@@ -90,4 +90,4 @@ Planning lives in [`docs/`](docs/) (ideas, specs, ADRs); see [AGENTS.md](AGENTS.
 
 ## License
 
-Licensed under [Apache-2.0](LICENSE).
+Copyright 2026 Mark Lechtermann. Licensed under [Apache-2.0](LICENSE).
