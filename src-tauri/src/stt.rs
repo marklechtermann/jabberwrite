@@ -121,3 +121,25 @@ fn find_dir_with(dir: &Path, file: &str) -> Option<PathBuf> {
         .map(|e| e.path())
         .find(|p| p.join(file).is_file())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Manual check against a real model:
+    /// `JABBERWRITE_TEST_MODEL=<dir> JABBERWRITE_TEST_WAV=<file> cargo test -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn transcribes_wav() {
+        let model = std::env::var("JABBERWRITE_TEST_MODEL").expect("JABBERWRITE_TEST_MODEL");
+        let wav = std::env::var("JABBERWRITE_TEST_WAV").expect("JABBERWRITE_TEST_WAV");
+        let engine = Engine::load(Path::new(&model)).unwrap();
+        let wave = sherpa_onnx::Wave::read(&wav).expect("read wav");
+        let started = std::time::Instant::now();
+        let text = engine
+            .transcribe(wave.samples(), wave.sample_rate() as u32)
+            .unwrap();
+        println!("{:.2}s: {text}", started.elapsed().as_secs_f32());
+        assert!(!text.is_empty());
+    }
+}
