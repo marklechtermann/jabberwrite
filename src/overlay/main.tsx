@@ -17,8 +17,24 @@ function Overlay() {
 
   return (
     <div className={`badge ${state}`} title={state}>
-      {state === "recording" && <div className="dot" />}
-      {state === "processing" && <div className="spinner" />}
+      {state === "recording" && (
+        <>
+          <svg className="ring" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="25" pathLength="100" />
+          </svg>
+          <svg className="mic" viewBox="0 0 24 24">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+          </svg>
+        </>
+      )}
+      {state === "processing" && (
+        <div className="dots">
+          <i />
+          <i />
+          <i />
+        </div>
+      )}
       {state === "error" && <div className="error">!</div>}
     </div>
   );

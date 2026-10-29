@@ -19,21 +19,57 @@ body,
   justify-content: center;
 }
 
-.dot {
-  width: 40%;
-  height: 40%;
-  border-radius: 50%;
-  background: #ef4444;
-  animation: pulse 1.2s ease-in-out infinite;
+.badge {
+  position: relative;
 }
 
-.spinner {
-  width: 45%;
-  height: 45%;
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 30 70;
+  transform-origin: center;
+  animation: spin 1.1s linear infinite;
+}
+
+.mic {
+  width: 46%;
+  height: 46%;
+  fill: #fff;
+  stroke: #fff;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mic path {
+  fill: none;
+}
+
+.dots {
+  display: flex;
+  gap: 5px;
+}
+
+.dots i {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #fff;
-  animation: spin 0.8s linear infinite;
+  background: #fff;
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
 }
 
 .error {
@@ -41,10 +77,16 @@ body,
   font: bold 24px system-ui, sans-serif;
 }
 
-@keyframes pulse {
-  50% {
-    transform: scale(0.75);
-    opacity: 0.7;
+@keyframes wave {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-7px);
+    opacity: 1;
   }
 }
 
