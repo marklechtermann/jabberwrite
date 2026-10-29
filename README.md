@@ -84,4 +84,4 @@ Planning lives in [`docs/`](docs/) (ideas, specs, ADRs); see [AGENTS.md](AGENTS.
 
 ## License
 
-Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Licensed under [Apache-2.0](LICENSE).

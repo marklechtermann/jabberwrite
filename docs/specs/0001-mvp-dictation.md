@@ -63,7 +63,7 @@ Press a global shortcut, speak, press it again, and the transcribed text is plac
 
 - Single-instance guard.
 - Logging with `tracing` to a rotating file in the data directory.
-- Dual licence MIT / Apache-2.0.
+- Licence Apache-2.0 (ADR 0006, originally dual MIT / Apache-2.0).
 - CI, versioning and installers per ADR 0004.
 
 ## Out of scope

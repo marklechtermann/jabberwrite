@@ -34,7 +34,7 @@
     "targets": ["nsis", "dmg", "app", "appimage", "deb"],
     "category": "Productivity",
     "shortDescription": "Voice-to-text dictation for agentic coding",
-    "license": "MIT OR Apache-2.0",
+    "license": "Apache-2.0",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
