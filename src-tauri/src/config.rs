@@ -14,6 +14,8 @@ pub struct Config {
     pub paste_shortcut: String,
     /// Directory with the model files; defaults to the downloaded model.
     pub model_path: Option<PathBuf>,
+    /// Delete the recognized-text history whenever Jabberwrite quits.
+    pub clear_history_on_exit: bool,
 }
 
 impl Default for Config {
@@ -23,12 +25,14 @@ impl Default for Config {
                 shortcut: "Ctrl+Cmd".into(),
                 paste_shortcut: "Cmd+V".into(),
                 model_path: None,
+                clear_history_on_exit: false,
             }
         } else {
             Config {
                 shortcut: "Ctrl+Super".into(),
                 paste_shortcut: "Ctrl+V".into(),
                 model_path: None,
+                clear_history_on_exit: false,
             }
         }
     }

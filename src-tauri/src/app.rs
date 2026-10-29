@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::audio::Recording;
 use crate::config::Config;
+use crate::history::{Entry, History};
 use crate::keys::Shortcut;
 use crate::paste::Clipboard;
 use crate::stt::Engine;
@@ -31,11 +32,13 @@ pub struct Paths {
     pub config: PathBuf,
     pub logs: PathBuf,
     pub models: PathBuf,
+    pub history: PathBuf,
 }
 
 pub struct App {
     pub handle: AppHandle,
     pub paths: Paths,
+    history: History,
     pub config: Mutex<Config>,
     pub config_error: Option<String>,
     phase: Mutex<Phase>,
@@ -55,6 +58,7 @@ impl App {
     ) -> App {
         App {
             handle,
+            history: History::new(paths.history.clone()),
             paths,
             config: Mutex::new(config),
             config_error,
@@ -161,13 +165,15 @@ impl App {
             return Ok(());
         }
 
-        {
-            let mut clipboard = self.clipboard.lock().unwrap();
-            if clipboard.is_none() {
-                *clipboard = Some(Clipboard::new()?);
+        // Logged before pasting so the text survives a failed paste.
+        match self.history.append(&text) {
+            Ok(entry) => {
+                let _ = self.handle.emit("history", entry);
             }
-            clipboard.as_mut().unwrap().set(&text)?;
+            Err(e) => tracing::error!("{e}"),
         }
+
+        self.copy(&text)?;
         std::thread::sleep(Duration::from_millis(50));
 
         let shortcut = Shortcut::parse(&self.config.lock().unwrap().paste_shortcut)?;
@@ -178,6 +184,22 @@ impl App {
             })
             .map_err(|e| e.to_string())?;
         rx.recv().map_err(|e| e.to_string())?
+    }
+
+    fn copy(&self, text: &str) -> Result<(), String> {
+        let mut clipboard = self.clipboard.lock().unwrap();
+        if clipboard.is_none() {
+            *clipboard = Some(Clipboard::new()?);
+        }
+        clipboard.as_mut().unwrap().set(text)
+    }
+
+    pub fn clear_history_if_configured(&self) {
+        if self.config.lock().unwrap().clear_history_on_exit {
+            if let Err(e) = self.history.clear() {
+                tracing::error!("{e}");
+            }
+        }
     }
 
     fn fail(self: &Arc<Self>, error: String) {
@@ -210,6 +232,8 @@ pub struct AppInfo {
     repo_url: &'static str,
     config_path: String,
     log_dir: String,
+    history_path: String,
+    clear_history_on_exit: bool,
     config_error: Option<String>,
     status: String,
     shortcut: String,
@@ -225,6 +249,8 @@ pub fn app_info(app: State) -> AppInfo {
         repo_url: crate::REPO_URL,
         config_path: app.paths.config.display().to_string(),
         log_dir: app.paths.logs.display().to_string(),
+        history_path: app.paths.history.display().to_string(),
+        clear_history_on_exit: app.config.lock().unwrap().clear_history_on_exit,
         config_error: app.config_error.clone(),
         status: app.status(),
         shortcut: app.config.lock().unwrap().shortcut.clone(),
@@ -250,6 +276,34 @@ pub fn save_shortcut(app: State, shortcut: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn save_clear_history_on_exit(app: State, enabled: bool) -> Result<(), String> {
+    if app.config_error.is_some() {
+        return Err("The config file is invalid. Fix it by hand and restart.".into());
+    }
+    let mut config = app.config.lock().unwrap();
+    let mut updated = config.clone();
+    updated.clear_history_on_exit = enabled;
+    crate::config::save(&app.paths.config, &updated)?;
+    *config = updated;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn history(app: State) -> Vec<Entry> {
+    app.history.list()
+}
+
+#[tauri::command]
+pub fn clear_history(app: State) -> Result<(), String> {
+    app.history.clear()
+}
+
+#[tauri::command]
+pub fn copy_text(app: State, text: String) -> Result<(), String> {
+    app.copy(&text)
+}
+
+#[tauri::command]
 pub fn set_hotkey_paused(paused: bool) {
     crate::hotkey::set_paused(paused);
 }
@@ -260,6 +314,7 @@ pub fn open_path(app: State, kind: String) -> Result<(), String> {
     let path = match kind.as_str() {
         "config" => app.paths.config.clone(),
         "logs" => app.paths.logs.clone(),
+        "history" => app.paths.history.clone(),
         _ => return Err(format!("unknown path {kind}")),
     };
     app.handle
