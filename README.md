@@ -1,0 +1,67 @@
+# Jabberwrite
+
+Voice-to-text dictation for agentic coding. Press a shortcut, speak, press it again: the text lands in your clipboard and is pasted into the focused window.
+
+Runs fully offline after a one-time model download (~490 MB).
+
+## Usage
+
+1. Install the build for your platform from [Releases](https://github.com/marklechtermann/jabberwrite/releases).
+2. Start Jabberwrite. It lives in the system tray. On first launch it downloads the speech model; the tray menu shows progress.
+3. Press **Ctrl+Super** (Windows/Linux) or **Ctrl+Cmd** (macOS) and release it to start recording. Press and release again to stop. The transcript is copied to the clipboard and pasted.
+
+Change the shortcut via tray → **Settings…**.
+
+### Platform notes
+
+- **macOS:** builds are unsigned. Right-click the app → Open on first launch. Grant Microphone, Input Monitoring and Accessibility permissions, then restart the app.
+- **Windows:** builds are unsigned; SmartScreen may warn on first launch.
+- **Linux:** X11 sessions only. Wayland is not supported yet.
+
+## Configuration
+
+Settings are stored as JSON and can be edited by hand (restart to apply):
+
+| OS      | Path                                                 |
+| ------- | ---------------------------------------------------- |
+| Linux   | `~/.config/jabberwrite/config.json`                  |
+| Windows | `%APPDATA%\jabberwrite\config.json`                  |
+| macOS   | `~/Library/Application Support/jabberwrite/config.json` |
+
+```json
+{
+  "shortcut": "Ctrl+Super",
+  "paste_shortcut": "Ctrl+V",
+  "model_path": null
+}
+```
+
+- `shortcut`: modifiers (`Ctrl`, `Shift`, `Alt`, `Super`/`Cmd`) plus at most one key, e.g. `Ctrl+Alt+Space`. Modifier-only shortcuts fire on release.
+- `paste_shortcut`: keystroke used to paste, e.g. `Ctrl+Shift+V` for Linux terminals.
+- `model_path`: directory with `encoder.int8.onnx`, `decoder.int8.onnx`, `joiner.int8.onnx` and `tokens.txt`, to use your own copy of the model.
+
+## Development
+
+Requirements: Rust (stable), Node.js (LTS), and on Linux:
+
+```sh
+sudo apt-get install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev libxdo-dev libdbus-1-dev
+```
+
+```sh
+npm install
+npm run tauri dev      # run the app
+npm run tauri build    # build installers
+cd src-tauri && cargo test
+```
+
+Planning lives in [`docs/`](docs/) (ideas, specs, ADRs); see [AGENTS.md](AGENTS.md).
+
+## Credits
+
+- Speech recognition: [Orukeet](https://github.com/Oruk-AI/orukeet), a fine-tune of [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3). The model weights are licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) and downloaded at runtime; they are not part of this repository.
+- Runtime: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache-2.0).
+
+## License
+
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.

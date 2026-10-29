@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: in-progress
 adrs: [0001, 0002, 0003, 0004]
 ---
 
@@ -72,21 +72,21 @@ Wayland, push-to-talk, GPU acceleration, microphone picker, language setting, la
 
 ## Tasks
 
-- [ ] Scaffold Tauri v2 + React/TS/Vite (standard layout, two entry points), licence files, README
-- [ ] `config`: load/save JSON, defaults, invalid-file handling
-- [ ] Logging with `tracing` to rotating file
-- [ ] Single-instance guard
-- [ ] Tray icon and menu, tray-only activation policy
-- [ ] `hotkey`: low-level hook for Windows, macOS, X11; modifier-only release logic
-- [ ] `audio`: capture default input, resample to mono 16 kHz f32
-- [ ] `stt`: model download with SHA-256 check and progress; sherpa-onnx load and transcribe
-- [ ] `paste`: clipboard write and simulated paste shortcut
-- [ ] State machine wiring incl. short-recording and empty-result handling
-- [ ] Overlay window: states, non-focusable, click-through; per-OS fixes if needed
-- [ ] Settings window: shortcut recorder, paths, version, repo link, credits
-- [ ] macOS permission check and System Settings deep links
-- [ ] Version injection (`Cargo.toml` → Tauri → frontend), dev version for local builds
-- [ ] GitHub Actions: PR checks matrix; release on `main` with `tauri-action`
+- [x] Scaffold Tauri v2 + React/TS/Vite (standard layout, two entry points), licence files, README
+- [x] `config`: load/save JSON, defaults, invalid-file handling
+- [x] Logging with `tracing` to rotating file
+- [x] Single-instance guard
+- [x] Tray icon and menu, tray-only activation policy
+- [x] `hotkey`: low-level hook for Windows, macOS, X11; modifier-only release logic
+- [x] `audio`: capture default input, resample to mono 16 kHz f32
+- [x] `stt`: model download with SHA-256 check and progress; sherpa-onnx load and transcribe
+- [x] `paste`: clipboard write and simulated paste shortcut
+- [x] State machine wiring incl. short-recording and empty-result handling
+- [x] Overlay window: states, non-focusable, click-through; per-OS fixes if needed
+- [x] Settings window: shortcut recorder, paths, version, repo link, credits
+- [x] macOS permission check and System Settings deep links
+- [x] Version injection (`Cargo.toml` → Tauri → frontend), dev version for local builds
+- [x] GitHub Actions: PR checks matrix; release on `main` with `tauri-action`
 
 ## Done when
 
