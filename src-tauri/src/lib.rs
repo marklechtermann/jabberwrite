@@ -35,6 +35,9 @@ fn paths() -> Paths {
 
 fn init_logging(dir: &std::path::Path) {
     use tracing_subscriber::EnvFilter;
+    // tracing-appender prunes old logs before creating the directory, which
+    // prints a spurious "No such file or directory" on first start.
+    let _ = std::fs::create_dir_all(dir);
     let appender = tracing_appender::rolling::Builder::new()
         .rotation(tracing_appender::rolling::Rotation::DAILY)
         .filename_prefix("jabberwrite")
