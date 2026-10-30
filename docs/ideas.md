@@ -46,6 +46,11 @@ Short sounds on recording start and stop.
 
 Optional processing of the transcript: trailing space, filler-word removal, custom replacements, or LLM cleanup.
 
-## Wayland support
+## Wayland clipboard
 
-Full support for Linux Wayland sessions. Paste is covered by spec 0007; still needed: an alternative for the global hotkey (evdev with `input` group or XDG GlobalShortcuts portal) and the overlay (layer-shell). Out of v1 per ADR 0001.
+Check that copy works on native Wayland windows without XWayland. If it does not, arboard's `wayland-data-control` feature is needed, which only works on compositors that offer `wlr-data-control`. Not verified yet.
+
+## Sharp badge on HiDPI Wayland
+
+The layer-shell badge is drawn at buffer scale 1, so it looks blurry on outputs with scale 2. Draw at the output scale instead.
+

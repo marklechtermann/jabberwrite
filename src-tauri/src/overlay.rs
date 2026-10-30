@@ -1,5 +1,8 @@
 //! Small always-on-top indicator that must never take focus.
 
+#[cfg(target_os = "linux")]
+mod layer;
+
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
 const LABEL: &str = "overlay";
@@ -11,6 +14,12 @@ const BADGE: f64 = 56.0;
 const BOTTOM_MARGIN: f64 = 80.0;
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
+    // Wayland: no webview window, the badge is a layer-shell surface (ADR 0008).
+    #[cfg(target_os = "linux")]
+    if crate::session::is_wayland() {
+        app.manage(layer::start());
+        return Ok(());
+    }
     WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("overlay.html".into()))
         .title("Jabberwrite")
         .inner_size(SIZE, SIZE)
@@ -29,6 +38,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
 
 /// Show the overlay in `state` ("recording", "processing" or "error").
 pub fn show(app: &AppHandle, state: &str) {
+    #[cfg(target_os = "linux")]
+    if crate::session::is_wayland() {
+        if let Some(handle) = app.try_state::<layer::Handle>() {
+            handle.show(state);
+        }
+        return;
+    }
     let _ = app.emit_to(LABEL, "overlay-state", state);
     let Some(window) = app.get_webview_window(LABEL) else {
         return;
@@ -48,6 +64,13 @@ pub fn show(app: &AppHandle, state: &str) {
 }
 
 pub fn hide(app: &AppHandle) {
+    #[cfg(target_os = "linux")]
+    if crate::session::is_wayland() {
+        if let Some(handle) = app.try_state::<layer::Handle>() {
+            handle.hide();
+        }
+        return;
+    }
     if let Some(window) = app.get_webview_window(LABEL) {
         let _ = window.hide();
     }

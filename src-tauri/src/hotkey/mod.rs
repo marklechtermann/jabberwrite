@@ -6,6 +6,8 @@ use std::sync::{Mutex, OnceLock};
 use crate::keys::{Key, Matcher, Shortcut};
 
 #[cfg(target_os = "linux")]
+pub(crate) mod evdev;
+#[cfg(target_os = "linux")]
 mod x11;
 #[cfg(target_os = "linux")]
 use x11 as platform;
@@ -37,6 +39,17 @@ pub fn start(shortcut: Shortcut, on_fire: impl Fn() + Send + Sync + 'static) -> 
     };
     HOOK.set(hook)
         .map_err(|_| "hotkey already started".to_string())?;
+    #[cfg(target_os = "linux")]
+    if crate::session::is_wayland() {
+        return match evdev::run() {
+            Ok(()) => Ok(()),
+            Err(e) if std::env::var_os("DISPLAY").is_some() => {
+                tracing::warn!("{e}; using X11 via XWayland instead");
+                platform::run()
+            }
+            Err(e) => Err(e),
+        };
+    }
     platform::run()
 }
 

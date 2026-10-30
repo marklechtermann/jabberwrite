@@ -26,7 +26,8 @@ Updates are checked only when you ask: tray → **Check for Updates…**, or **S
 
 - **macOS:** builds are unsigned. Right-click the app → Open on first launch. Grant Microphone, Input Monitoring and Accessibility permissions, then restart the app.
 - **Windows:** builds are unsigned; SmartScreen may warn on first launch.
-- **Linux:** X11 works fully. On Wayland (GNOME, KDE), pasting goes through the desktop's Remote Desktop portal: on the first dictation the desktop asks once whether Jabberwrite may control the keyboard, and it may show a remote-control indicator while Jabberwrite runs. The global shortcut and overlay are not fully supported on Wayland yet.
+- **Linux, X11:** works out of the box.
+- **Linux, Wayland (GNOME, KDE):** pasting goes through the desktop's Remote Desktop portal: on the first dictation the desktop asks once whether Jabberwrite may control the keyboard, and it may show a remote-control indicator while Jabberwrite runs. The global hotkey reads keyboard devices in `/dev/input`: add your user to the group `input` (`sudo usermod -aG input $USER`), then log in again. Note that any member of `input` can read all keyboards; the app reads keystrokes only to match the shortcut and does not store or send them. Without access, the tray shows an error that names the group. Shortcut letters match the US key positions, so on other layouts they follow the physical key. The recording badge needs `zwlr_layer_shell_v1` (KDE, sway and other wlroots compositors); GNOME shows no badge.
 
 ## Configuration
 

@@ -7,6 +7,7 @@ mod keys;
 mod overlay;
 mod paste;
 mod permissions;
+mod session;
 mod stt;
 mod update;
 
