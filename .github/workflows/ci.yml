@@ -38,6 +38,13 @@ jobs:
           workspaces: src-tauri
 
       - run: npm ci
+
+      - name: Licenses up to date
+        if: runner.os == 'Linux'
+        run: |
+          npm run licenses
+          git diff --exit-code ACKNOWLEDGEMENTS.md || { echo "::error::Run 'npm run licenses' and commit ACKNOWLEDGEMENTS.md"; exit 1; }
+
       - run: npm run build
 
       - name: cargo fmt

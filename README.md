@@ -87,6 +87,7 @@ Planning lives in [`docs/`](docs/) ([ideas](docs/ideas.md), specs, ADRs); see [A
 
 - Speech recognition: [Orukeet](https://github.com/Oruk-AI/orukeet), a fine-tune of [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3). The model weights are licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) and downloaded at runtime; they are not part of this repository.
 - Runtime: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache-2.0).
+- All other open source components and their license texts are listed in [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) and in the app under Settings > Licenses. The file is generated with `npm run licenses` (see [AGENTS.md](AGENTS.md)).
 
 ## License
 
