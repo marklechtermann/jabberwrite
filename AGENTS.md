@@ -36,3 +36,10 @@ All planning lives in `docs/`, written in English. Specs and ADRs are one file p
 - Numbers are sequential per directory. Take the next free number on `main` at the time you create the file.
 - When working in parallel with other agents, use a separate git worktree per spec branch.
 - Stay within the spec's scope. Anything new you notice goes into `docs/ideas.md`, not into the current branch.
+
+### License compliance
+
+- Whenever you add, remove or update a dependency (`src-tauri/Cargo.toml`, `package.json`, lockfiles), run `npm run licenses` and commit the regenerated `ACKNOWLEDGEMENTS.md` (the single file with all third-party licenses). It feeds the Licenses topic in the settings window, and CI fails when it is stale.
+- Components outside Cargo and npm (downloaded binaries, models, vendored code) go into the `manual` list in `scripts/generate-licenses.mjs`, with their license text in `third-party/`. This includes native libraries pulled in by a crate's build script (check what it downloads or links).
+- `npm run licenses` fails on licenses outside its allow-list (permissive, Apache-2.0-compatible). Do not extend the allow-list yourself; ask the user.
+- Check that the license of a new dependency is compatible with Apache-2.0 (ADR 0006). Ask the user before adding anything copyleft.
