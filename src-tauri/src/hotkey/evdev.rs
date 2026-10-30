@@ -74,10 +74,12 @@ fn attach_new(known: &Known) -> Scan {
             }
             Err(_) => continue,
         };
-        known.lock().unwrap().insert(path.clone());
         if !is_keyboard(&dev) {
             continue;
         }
+        // Only keyboards are recorded: a non-keyboard that unplugs must not block a
+        // keyboard that later reuses its eventN number.
+        known.lock().unwrap().insert(path.clone());
         let known = known.clone();
         let spawned = std::thread::Builder::new()
             .name("hotkey-evdev".into())
@@ -146,9 +148,32 @@ pub(crate) fn map(code: u16) -> Key {
 }
 
 const LETTERS: [(u16, char); 26] = [
-    (16, 'Q'), (17, 'W'), (18, 'E'), (19, 'R'), (20, 'T'), (21, 'Y'), (22, 'U'), (23, 'I'), (24, 'O'), (25, 'P'),
-    (30, 'A'), (31, 'S'), (32, 'D'), (33, 'F'), (34, 'G'), (35, 'H'), (36, 'J'), (37, 'K'), (38, 'L'),
-    (44, 'Z'), (45, 'X'), (46, 'C'), (47, 'V'), (48, 'B'), (49, 'N'), (50, 'M'),
+    (16, 'Q'),
+    (17, 'W'),
+    (18, 'E'),
+    (19, 'R'),
+    (20, 'T'),
+    (21, 'Y'),
+    (22, 'U'),
+    (23, 'I'),
+    (24, 'O'),
+    (25, 'P'),
+    (30, 'A'),
+    (31, 'S'),
+    (32, 'D'),
+    (33, 'F'),
+    (34, 'G'),
+    (35, 'H'),
+    (36, 'J'),
+    (37, 'K'),
+    (38, 'L'),
+    (44, 'Z'),
+    (45, 'X'),
+    (46, 'C'),
+    (47, 'V'),
+    (48, 'B'),
+    (49, 'N'),
+    (50, 'M'),
 ];
 
 #[cfg(test)]

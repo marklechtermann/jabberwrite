@@ -460,7 +460,7 @@ fn shade(kind: Kind, spin: f32, p: P) -> Px {
 /// Render the badge as ARGB8888 (little endian, premultiplied) into `canvas`.
 /// `spin` is the ring rotation in radians, clockwise.
 fn render(kind: Kind, spin: f32, canvas: &mut [u8]) {
-    for (i, out) in canvas.chunks_exact_mut(4).enumerate() {
+    for (i, out) in canvas.as_chunks_mut::<4>().0.iter_mut().enumerate() {
         let (x, y) = ((i as u32 % PX) as f32 + 0.5, (i as u32 / PX) as f32 + 0.5);
         let [r, g, b, a] = shade(kind, spin, (x, y)).map(|c| (c * 255.0 + 0.5) as u32);
         out.copy_from_slice(&((a << 24) | (r << 16) | (g << 8) | b).to_le_bytes());

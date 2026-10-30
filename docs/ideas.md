@@ -50,3 +50,7 @@ Optional processing of the transcript: trailing space, filler-word removal, cust
 
 Check that copy works on native Wayland windows without XWayland. If it does not, arboard's `wayland-data-control` feature is needed, which only works on compositors that offer `wlr-data-control`. Not verified yet.
 
+## Sharp badge on HiDPI Wayland
+
+The layer-shell badge is drawn at buffer scale 1, so it looks blurry on outputs with scale 2. Draw at the output scale instead.
+
