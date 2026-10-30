@@ -30,6 +30,7 @@ fn paths() -> Paths {
         logs: data.join("logs"),
         models: data.join("models"),
         history: data.join("history.jsonl"),
+        portal_token: data.join("portal-token"),
     }
 }
 

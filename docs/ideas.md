@@ -48,4 +48,4 @@ Optional processing of the transcript: trailing space, filler-word removal, cust
 
 ## Wayland support
 
-Support Linux Wayland sessions. Needs an alternative for the global hotkey (evdev with `input` group or XDG GlobalShortcuts portal), synthetic paste (uinput, `wtype`/`ydotool`) and the overlay (layer-shell). Out of v1 per ADR 0001.
+Full support for Linux Wayland sessions. Paste is covered by spec 0007; still needed: an alternative for the global hotkey (evdev with `input` group or XDG GlobalShortcuts portal) and the overlay (layer-shell). Out of v1 per ADR 0001.

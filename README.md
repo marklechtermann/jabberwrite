@@ -26,7 +26,7 @@ Updates are checked only when you ask: tray → **Check for Updates…**, or **S
 
 - **macOS:** builds are unsigned. Right-click the app → Open on first launch. Grant Microphone, Input Monitoring and Accessibility permissions, then restart the app.
 - **Windows:** builds are unsigned; SmartScreen may warn on first launch.
-- **Linux:** X11 sessions only. Wayland is not supported yet.
+- **Linux:** X11 works fully. On Wayland (GNOME, KDE), pasting goes through the desktop's Remote Desktop portal: on the first dictation the desktop asks once whether Jabberwrite may control the keyboard, and it may show a remote-control indicator while Jabberwrite runs. The global shortcut and overlay are not fully supported on Wayland yet.
 
 ## Configuration
 
