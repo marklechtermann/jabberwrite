@@ -35,6 +35,9 @@ pub struct Paths {
     pub logs: PathBuf,
     pub models: PathBuf,
     pub history: PathBuf,
+    /// Restore token of the Wayland RemoteDesktop portal (ADR 0007).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub portal_token: PathBuf,
 }
 
 pub struct App {
@@ -209,6 +212,10 @@ impl App {
         std::thread::sleep(Duration::from_millis(50));
 
         let shortcut = Shortcut::parse(&self.config.lock().unwrap().paste_shortcut)?;
+        #[cfg(target_os = "linux")]
+        if paste::wayland::active() {
+            return paste::wayland::send(&shortcut, &self.paths.portal_token);
+        }
         let (tx, rx) = mpsc::channel();
         self.handle
             .run_on_main_thread(move || {
