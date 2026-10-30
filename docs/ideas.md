@@ -2,6 +2,10 @@
 
 Inbox of raw ideas that are not specs yet. One `##` section per idea, a few sentences each, no ceremony. When an idea becomes a spec, remove its section.
 
+## Android support
+
+Discuss whether Jabberwrite should run on Android. The desktop approach of a global hotkey plus synthetic paste does not carry over, since Android apps cannot send keystrokes to other apps; an input method (custom keyboard) with a dictation button is the usual way. Open questions: Tauri 2 mobile or a native app, and whether the model runs fast enough on phones.
+
 ## Code signing and notarization
 
 Sign Windows installers and sign/notarize macOS builds to avoid SmartScreen/Gatekeeper warnings and smooth macOS permission prompts.
