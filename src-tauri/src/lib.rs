@@ -87,6 +87,8 @@ pub fn run() {
             update::install_update,
         ])
         .setup(move |tauri_app| {
+            #[cfg(target_os = "linux")]
+            session::ensure_cursor_size();
             #[cfg(target_os = "macos")]
             tauri_app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
