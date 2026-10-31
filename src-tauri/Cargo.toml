@@ -41,6 +41,7 @@ evdev = "0.13.2"
 smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["calloop"] }
 x11rb = { version = "0.13", features = ["xinput"] }
 ashpd = { version = "0.13", features = ["remote_desktop", "screencast"] }
+gtk = "0.18"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_LibraryLoader", "Win32_System_RemoteDesktop"] }

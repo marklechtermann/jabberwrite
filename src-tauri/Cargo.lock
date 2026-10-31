@@ -2231,6 +2231,7 @@ dependencies = [
  "directories",
  "enigo",
  "evdev",
+ "gtk",
  "objc2",
  "serde",
  "serde_json",
