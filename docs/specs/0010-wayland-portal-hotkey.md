@@ -29,7 +29,7 @@ On GNOME and KDE Wayland the global hotkey works without adding the user to the 
 - [x] `hotkey/portal.rs` with unit tests for trigger conversion, key repeat and `.desktop` quoting
 - [x] Fallback order in `hotkey::start`
 - [x] README
-- [ ] CI green (fmt, clippy, tests, licenses)
+- [x] CI green (fmt, clippy, tests, licenses)
 - [ ] Manual test on Ubuntu 26.04 Wayland without the group `input`: confirm dialog on first start, no dialog on second start, toggling works in a native Wayland window, holding the shortcut toggles once
 - [ ] Manual test on KDE Plasma Wayland
 

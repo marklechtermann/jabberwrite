@@ -25,7 +25,7 @@ The release AppImage starts and works on Ubuntu GNOME Wayland without the user c
 - [x] Isolate the cause: bundled GTK 3.24.33 plus `cursor-size=0`; system GTK 3.24.52 is not affected
 - [x] `session::ensure_cursor_size()` called from `setup` on Linux
 - [x] README Wayland notes
-- [ ] CI green (fmt, clippy, tests, licenses)
+- [x] CI green (fmt, clippy, tests, licenses)
 - [ ] Release AppImage verified on the VM: settings window opens, dictation pastes into a native Wayland window
 
 ## Done when
