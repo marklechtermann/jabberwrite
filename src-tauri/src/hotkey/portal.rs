@@ -104,7 +104,9 @@ struct Repeats {
 
 impl Repeats {
     fn press(&mut self, at: Duration) -> bool {
-        let repeat = self.last.is_some_and(|l| at.saturating_sub(l) <= REPEAT_WINDOW);
+        let repeat = self
+            .last
+            .is_some_and(|l| at.saturating_sub(l) <= REPEAT_WINDOW);
         let new = self.released || !repeat;
         self.last = Some(at);
         self.released = false;
