@@ -119,6 +119,66 @@ function ShortcutField({ value, mac, onSave }: { value: string; mac: boolean; on
   );
 }
 
+type RecordState =
+  | { kind: "idle" | "recording" | "processing" }
+  | { kind: "done"; text: string | null }
+  | { kind: "error"; message: string };
+
+/** Hold to record, release to stop. The text is shown here, not pasted. */
+function RecordButton() {
+  const [state, setState] = useState<RecordState>({ kind: "idle" });
+  const active = useRef(false);
+
+  const start = () => {
+    if (active.current) return;
+    active.current = true;
+    setState({ kind: "recording" });
+    invoke("record_start");
+  };
+  const stop = () => {
+    if (!active.current) return;
+    active.current = false;
+    setState({ kind: "processing" });
+    invoke<string | null>("record_stop")
+      .then((text) => setState({ kind: "done", text }))
+      .catch((e) => setState({ kind: "error", message: String(e) }));
+  };
+
+  return (
+    <>
+      <div className="row">
+        <button
+          className={`record ${state.kind === "recording" ? "active" : ""}`}
+          disabled={state.kind === "processing"}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            start();
+          }}
+          onPointerUp={stop}
+          onPointerCancel={stop}
+          onLostPointerCapture={stop}
+          onKeyDown={(e) => {
+            if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+              e.preventDefault();
+              start();
+            }
+          }}
+          onKeyUp={(e) => (e.key === " " || e.key === "Enter") && stop()}
+          onBlur={stop}
+        >
+          {state.kind === "recording" ? "Recording… release to stop" : "Hold to record"}
+        </button>
+        <span className="muted">
+          {state.kind === "processing" && "Recognizing…"}
+          {state.kind === "done" && state.text === null && "Nothing recognized."}
+        </span>
+      </div>
+      {state.kind === "done" && state.text !== null && <div className="record-result">{state.text}</div>}
+      {state.kind === "error" && <p className="error">{state.message}</p>}
+    </>
+  );
+}
+
 function Link({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a
@@ -379,6 +439,17 @@ function Settings() {
               <h2>Shortcut</h2>
               <p className="muted">Press once to start recording, again to stop.</p>
               <ShortcutField value={info.shortcut} mac={mac} onSave={saveShortcut} />
+            </section>
+          )}
+
+          {topic === "general" && (
+            <section>
+              <h2>Test recording</h2>
+              <p className="muted">
+                Hold the button and speak, release to stop. The text appears here and in the history; it is not
+                pasted.
+              </p>
+              <RecordButton />
             </section>
           )}
 
