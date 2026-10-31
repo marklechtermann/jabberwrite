@@ -8,6 +8,8 @@ use crate::keys::{Key, Matcher, Shortcut};
 #[cfg(target_os = "linux")]
 pub(crate) mod evdev;
 #[cfg(target_os = "linux")]
+mod portal;
+#[cfg(target_os = "linux")]
 mod x11;
 #[cfg(target_os = "linux")]
 use x11 as platform;
@@ -39,16 +41,20 @@ pub fn start(shortcut: Shortcut, on_fire: impl Fn() + Send + Sync + 'static) -> 
     };
     HOOK.set(hook)
         .map_err(|_| "hotkey already started".to_string())?;
+    // Wayland order (ADR 0009): evdev, GlobalShortcuts portal, X11 via XWayland.
     #[cfg(target_os = "linux")]
     if crate::session::is_wayland() {
-        return match evdev::run() {
-            Ok(()) => Ok(()),
-            Err(e) if std::env::var_os("DISPLAY").is_some() => {
-                tracing::warn!("{e}; using X11 via XWayland instead");
-                platform::run()
-            }
-            Err(e) => Err(e),
+        let Err(evdev_err) = evdev::run() else {
+            return Ok(());
         };
+        tracing::warn!("{evdev_err}; trying the global shortcut portal");
+        let Err(portal_err) = portal::run(shortcut) else {
+            return Ok(());
+        };
+        if std::env::var_os("DISPLAY").is_none() {
+            return Err(format!("{evdev_err}; {portal_err}"));
+        }
+        tracing::warn!("{portal_err}; using X11 via XWayland instead");
     }
     platform::run()
 }
@@ -78,8 +84,16 @@ fn reset() {
 /// Called by the platform hook for every key event. Must return quickly.
 fn dispatch(key: Key, pressed: bool) {
     let Some(hook) = HOOK.get() else { return };
-    let fired = hook.matcher.lock().unwrap().on_key(key, pressed);
-    if fired && !hook.paused.load(Ordering::Relaxed) {
+    if hook.matcher.lock().unwrap().on_key(key, pressed) {
+        fire();
+    }
+}
+
+/// Run the callback unless paused. The portal calls this directly: the
+/// desktop does the matching there.
+fn fire() {
+    let Some(hook) = HOOK.get() else { return };
+    if !hook.paused.load(Ordering::Relaxed) {
         (hook.on_fire)();
     }
 }

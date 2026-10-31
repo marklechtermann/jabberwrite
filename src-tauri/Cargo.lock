@@ -2231,6 +2231,7 @@ dependencies = [
  "directories",
  "enigo",
  "evdev",
+ "futures-util",
  "objc2",
  "serde",
  "serde_json",
