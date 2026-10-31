@@ -206,6 +206,9 @@ impl App {
         if audio.duration_secs() < MIN_RECORDING_SECS {
             return Ok(None);
         }
+        if audio.is_silent() {
+            return Err("the microphone delivered only silence; check the input device".into());
+        }
         let engine = self.engine.get().ok_or("model not loaded")?;
         let started = std::time::Instant::now();
         let text = engine.transcribe(&audio.samples, audio.sample_rate)?;
