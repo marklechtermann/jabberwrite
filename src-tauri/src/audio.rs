@@ -16,6 +16,12 @@ impl Audio {
     pub fn duration_secs(&self) -> f32 {
         self.samples.len() as f32 / self.sample_rate as f32
     }
+
+    /// True if no sample rises above digital silence, as when the input
+    /// device is missing or muted. A quiet room still has noise above this.
+    pub fn is_silent(&self) -> bool {
+        self.samples.iter().all(|s| s.abs() < 1e-4)
+    }
 }
 
 /// A running recording. The cpal stream lives on its own thread because it
@@ -107,4 +113,19 @@ where
             None,
         )
         .map_err(|e| format!("microphone: {e}"))
+}
+
+#[cfg(test)]
+mod silence_tests {
+    use super::Audio;
+
+    #[test]
+    fn detects_digital_silence() {
+        let audio = |samples: Vec<f32>| Audio {
+            samples,
+            sample_rate: 16000,
+        };
+        assert!(audio(vec![0.0; 1600]).is_silent());
+        assert!(!audio(vec![0.0, 0.002, -0.001]).is_silent());
+    }
 }
