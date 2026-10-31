@@ -288,3 +288,22 @@ a {
 .error {
   color: var(--error);
 }
+
+.record {
+  padding: 8px 16px;
+  user-select: none;
+  touch-action: none;
+}
+
+.record.active {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.record-result {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}

@@ -75,6 +75,8 @@ pub fn run() {
             app::app_info,
             app::save_shortcut,
             app::set_hotkey_paused,
+            app::record_start,
+            app::record_stop,
             app::open_path,
             app::history,
             app::clear_history,

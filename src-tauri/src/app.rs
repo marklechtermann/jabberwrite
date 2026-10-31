@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex, OnceLock};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -47,7 +48,8 @@ pub struct App {
     pub config: Mutex<Config>,
     pub config_error: Option<String>,
     phase: Mutex<Phase>,
-    recording: Mutex<Option<Recording>>,
+    /// The running recording and whether to paste its text.
+    recording: Mutex<Option<(Recording, bool)>>,
     engine: OnceLock<Engine>,
     clipboard: Mutex<Option<Clipboard>>,
     status: Mutex<String>,
@@ -148,45 +150,61 @@ impl App {
 
     /// Hotkey handler. Never call on the hook thread; it may block briefly.
     pub fn toggle(self: &Arc<Self>) {
-        let mut phase = self.phase.lock().unwrap();
-        if self.updating.load(Ordering::SeqCst) {
-            return;
-        }
-        match *phase {
-            Phase::Idle => match Recording::start() {
-                Ok(rec) => {
-                    *self.recording.lock().unwrap() = Some(rec);
-                    *phase = Phase::Recording;
-                    overlay::show(&self.handle, "recording");
-                }
-                Err(e) => self.fail(e),
-            },
+        let phase = *self.phase.lock().unwrap();
+        match phase {
+            Phase::Idle => self.start(true),
             Phase::Recording => {
-                let Some(rec) = self.recording.lock().unwrap().take() else {
-                    return;
-                };
-                *phase = Phase::Processing;
-                overlay::show(&self.handle, "processing");
-                let app = self.clone();
-                std::thread::spawn(move || app.finish(rec));
+                self.stop();
             }
             Phase::Loading | Phase::Processing => {}
         }
     }
 
-    fn finish(self: &Arc<Self>, rec: Recording) {
-        let result = self.transcribe_and_paste(rec);
-        *self.phase.lock().unwrap() = Phase::Idle;
-        match result {
-            Ok(()) => overlay::hide(&self.handle),
+    /// Start recording if idle. With `paste`, the text is pasted into the
+    /// focused window when the recording stops.
+    pub fn start(self: &Arc<Self>, paste: bool) {
+        let mut phase = self.phase.lock().unwrap();
+        if self.updating.load(Ordering::SeqCst) || *phase != Phase::Idle {
+            return;
+        }
+        match Recording::start() {
+            Ok(rec) => {
+                *self.recording.lock().unwrap() = Some((rec, paste));
+                *phase = Phase::Recording;
+                overlay::show(&self.handle, "recording");
+            }
             Err(e) => self.fail(e),
         }
     }
 
-    fn transcribe_and_paste(&self, rec: Recording) -> Result<(), String> {
+    /// Stop recording and recognize in the background. The handle yields the
+    /// recognized text; `None` if nothing was recording.
+    pub fn stop(self: &Arc<Self>) -> Option<JoinHandle<Result<Option<String>, String>>> {
+        let mut phase = self.phase.lock().unwrap();
+        if *phase != Phase::Recording {
+            return None;
+        }
+        let (rec, paste) = self.recording.lock().unwrap().take()?;
+        *phase = Phase::Processing;
+        overlay::show(&self.handle, "processing");
+        let app = self.clone();
+        Some(std::thread::spawn(move || app.finish(rec, paste)))
+    }
+
+    fn finish(self: &Arc<Self>, rec: Recording, paste: bool) -> Result<Option<String>, String> {
+        let result = self.transcribe(rec, paste);
+        *self.phase.lock().unwrap() = Phase::Idle;
+        match &result {
+            Ok(_) => overlay::hide(&self.handle),
+            Err(e) => self.fail(e.clone()),
+        }
+        result
+    }
+
+    fn transcribe(&self, rec: Recording, paste: bool) -> Result<Option<String>, String> {
         let audio = rec.stop()?;
         if audio.duration_secs() < MIN_RECORDING_SECS {
-            return Ok(());
+            return Ok(None);
         }
         let engine = self.engine.get().ok_or("model not loaded")?;
         let started = std::time::Instant::now();
@@ -197,7 +215,7 @@ impl App {
             started.elapsed().as_secs_f32()
         );
         if text.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
 
         // Logged before pasting so the text survives a failed paste.
@@ -208,7 +226,15 @@ impl App {
             Err(e) => tracing::error!("{e}"),
         }
 
-        self.copy(&text)?;
+        if paste {
+            self.paste_text(&text)?;
+        }
+        Ok(Some(text))
+    }
+
+    /// Copy to the clipboard and send the paste shortcut to the focused window.
+    fn paste_text(&self, text: &str) -> Result<(), String> {
+        self.copy(text)?;
         std::thread::sleep(Duration::from_millis(50));
 
         let shortcut = Shortcut::parse(&self.config.lock().unwrap().paste_shortcut)?;
@@ -343,6 +369,26 @@ pub fn clear_history(app: State) -> Result<(), String> {
 #[tauri::command]
 pub fn copy_text(app: State, text: String) -> Result<(), String> {
     app.copy(&text)
+}
+
+/// Start a test recording from the settings window; its text is not pasted.
+#[tauri::command]
+pub fn record_start(app: State) {
+    app.start(false);
+}
+
+/// Stop the test recording and return the recognized text.
+#[tauri::command]
+pub async fn record_stop(app: State<'_>) -> Result<Option<String>, String> {
+    let app = app.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || match app.stop() {
+        Some(handle) => handle
+            .join()
+            .map_err(|_| "recognition panicked".to_string())?,
+        None => Ok(None),
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
