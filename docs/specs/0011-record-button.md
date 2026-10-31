@@ -1,5 +1,5 @@
 ---
-status: in-progress  # draft | accepted | in-progress | done
+status: done  # draft | accepted | in-progress | done
 adrs: []
 ---
 
@@ -24,8 +24,8 @@ Test recording and recognition without the global shortcut, e.g. while the hotke
 - [x] `App::start` / `App::stop` with a paste flag; `toggle` built on them
 - [x] Commands `record_start`, `record_stop`
 - [x] Button and result in the settings window
-- [ ] CI green
-- [ ] Manual test: hold, speak, release shows the text; short tap shows nothing recognized
+- [x] CI green
+- [x] Manual test: hold, speak, release shows the text; short tap shows nothing recognized
 
 ## Done when
 
