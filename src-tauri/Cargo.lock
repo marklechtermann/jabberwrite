@@ -2231,6 +2231,7 @@ dependencies = [
  "directories",
  "enigo",
  "evdev",
+ "futures-util",
  "gtk",
  "objc2",
  "serde",

@@ -36,7 +36,7 @@ Expose the `paste_shortcut` config option in the settings dialog, e.g. for termi
 
 ## Push-to-talk mode
 
-Record while the shortcut is held, in addition to toggle mode. Configurable per user.
+Record while the shortcut is held, in addition to toggle mode. Configurable per user. Note: with the GlobalShortcuts portal (ADR 0009) GNOME sometimes sends no `Deactivated` after a hold, so release detection there is unreliable.
 
 ## Recording length limit
 
