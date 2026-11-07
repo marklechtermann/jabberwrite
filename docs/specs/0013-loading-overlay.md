@@ -1,5 +1,5 @@
 ---
-status: in-progress  # draft | accepted | in-progress | done
+status: done  # draft | accepted | in-progress | done
 adrs: [0008, 0009]
 ---
 
