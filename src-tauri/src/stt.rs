@@ -80,6 +80,7 @@ pub fn ensure_model(models_dir: &Path, progress: impl Fn(f32)) -> Result<PathBuf
 
 fn download(dest: &Path, progress: &impl Fn(f32)) -> Result<(), String> {
     tracing::info!("downloading model from {MODEL_URL}");
+    progress(0.0);
     let err = |e: &dyn std::fmt::Display| format!("downloading model: {e}");
     let mut response = ureq::get(MODEL_URL).call().map_err(|e| err(&e))?;
     let total = response.body().content_length().unwrap_or(0);

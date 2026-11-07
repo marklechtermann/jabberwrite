@@ -124,27 +124,32 @@ impl App {
     }
 
     /// Download (if needed) and load the model. Runs on a background thread.
-    pub fn load_model(&self) {
+    /// The overlay shows the progress and hides once the model is ready.
+    pub fn load_model(self: &Arc<Self>) {
         // Bind first: a lock guard in the match scrutinee would be held during the download.
         let model_path = self.config.lock().unwrap().model_path.clone();
         let dir = match model_path {
             Some(dir) => Ok(dir),
             None => crate::stt::ensure_model(&self.paths.models, |p| {
+                overlay::show(&self.handle, overlay::State::Downloading(p));
                 self.set_status(&format!("Downloading model {:.0}%", p * 100.0))
             }),
         };
-        self.set_status("Loading model");
-        match dir.and_then(|d| Engine::load(&d)) {
+        let loaded = dir.and_then(|d| {
+            overlay::show(&self.handle, overlay::State::Loading);
+            self.set_status("Loading model");
+            Engine::load(&d)
+        });
+        match loaded {
             Ok(engine) => {
                 let _ = self.engine.set(engine);
                 *self.phase.lock().unwrap() = Phase::Idle;
+                overlay::hide(&self.handle);
                 self.set_status("Ready");
                 tracing::info!("model loaded");
             }
-            Err(e) => {
-                tracing::error!("{e}");
-                self.set_status(&format!("Error: {e}"));
-            }
+            // Shows the error badge briefly; the message stays in the tray.
+            Err(e) => self.fail(e),
         }
     }
 
@@ -171,7 +176,7 @@ impl App {
             Ok(rec) => {
                 *self.recording.lock().unwrap() = Some((rec, paste));
                 *phase = Phase::Recording;
-                overlay::show(&self.handle, "recording");
+                overlay::show(&self.handle, overlay::State::Recording);
             }
             Err(e) => self.fail(e),
         }
@@ -186,7 +191,7 @@ impl App {
         }
         let (rec, paste) = self.recording.lock().unwrap().take()?;
         *phase = Phase::Processing;
-        overlay::show(&self.handle, "processing");
+        overlay::show(&self.handle, overlay::State::Processing);
         let app = self.clone();
         Some(std::thread::spawn(move || app.finish(rec, paste)))
     }
@@ -273,7 +278,7 @@ impl App {
     fn fail(self: &Arc<Self>, error: String) {
         tracing::error!("{error}");
         self.set_status(&format!("Error: {error}"));
-        overlay::show(&self.handle, "error");
+        overlay::show(&self.handle, overlay::State::Error);
         let app = self.clone();
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_secs(2));
