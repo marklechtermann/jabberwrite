@@ -1,5 +1,5 @@
 ---
-status: draft  # draft | accepted | in-progress | done
+status: done  # draft | accepted | in-progress | done
 adrs: [0008, 0009]
 ---
 
@@ -36,12 +36,12 @@ After installation the model is downloaded first, and on every start it takes a 
 
 ## Tasks
 
-- [ ] Store the current overlay state in Rust and add a command the webview reads on mount
-- [ ] Add `downloading` (with progress) and `loading` to `overlay::show` / `hide`
-- [ ] Call the overlay from `App::load_model()` for download, load, success and failure
-- [ ] Webview: render both states (arrow + progress ring, blue spinner); no default `recording` state
-- [ ] Layer-shell: render both states, animate the `loading` ring, redraw on progress
-- [ ] CI green
+- [x] Store the current overlay state in Rust and add a command the webview reads on mount
+- [x] Add `downloading` (with progress) and `loading` to `overlay::show` / `hide`
+- [x] Call the overlay from `App::load_model()` for download, load, success and failure
+- [x] Webview: render both states (arrow + progress ring, blue spinner); no default `recording` state
+- [x] Layer-shell: render both states, animate the `loading` ring, redraw on progress
+- [x] CI green
 - [ ] Manual test on Linux X11 and Wayland (KDE or sway): delete the model dir, start: arrow with filling ring, then spinner, then the badge disappears and the shortcut records
 - [ ] Manual test with the model on disk: spinner is shown, then disappears
 - [ ] Manual test of a failed download (for example offline): error badge, error text in the tray

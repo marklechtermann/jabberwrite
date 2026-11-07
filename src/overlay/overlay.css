@@ -41,7 +41,31 @@ body,
   animation: spin 1.1s linear infinite;
 }
 
-.mic {
+.loading .ring {
+  stroke: #60a5fa;
+}
+
+.progress {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke-width: 2.5;
+  /* Start at 12 o'clock and fill clockwise. */
+  transform: rotate(-90deg);
+}
+
+.progress .track {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+
+.progress .bar {
+  stroke: #60a5fa;
+  stroke-linecap: round;
+}
+
+.glyph {
   width: 46%;
   height: 46%;
   fill: #fff;
@@ -51,7 +75,7 @@ body,
   stroke-linejoin: round;
 }
 
-.mic path {
+.glyph path {
   fill: none;
 }
 

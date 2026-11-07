@@ -36,12 +36,7 @@ const SPIN_SECS: f32 = 1.1;
 /// attempts without a configure in between.
 const MAX_CLOSES: u8 = 3;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Kind {
-    Recording,
-    Processing,
-    Error,
-}
+use super::State as Kind;
 
 enum Command {
     Show(Kind),
@@ -52,17 +47,7 @@ enum Command {
 pub struct Handle(Sender<Command>);
 
 impl Handle {
-    /// Show the badge in `state` ("recording", "processing" or "error").
-    pub fn show(&self, state: &str) {
-        let kind = match state {
-            "recording" => Kind::Recording,
-            "processing" => Kind::Processing,
-            "error" => Kind::Error,
-            other => {
-                tracing::debug!("Unknown overlay state {other:?}");
-                return;
-            }
-        };
+    pub fn show(&self, kind: Kind) {
         // The thread has already ended when the compositor offers no layer-shell.
         let _ = self.0.send(Command::Show(kind));
     }
@@ -225,11 +210,11 @@ impl Badge {
             }
         };
         let turns = (self.start.elapsed().as_secs_f32() / SPIN_SECS).fract();
-        render(kind, turns * std::f32::consts::TAU, canvas);
+        render(kind, turns * TAU, canvas);
         let surface = layer.wl_surface();
         surface.damage_buffer(0, 0, w, h);
-        // Only the recording ring moves; the next frame callback paces the redraw.
-        if kind == Kind::Recording && !self.frame_pending {
+        // Only the spinning rings move; the next frame callback paces the redraw.
+        if matches!(kind, Kind::Recording | Kind::Loading) && !self.frame_pending {
             surface.frame(&self.qh, FrameCallbackData(surface.clone()));
             self.frame_pending = true;
         }
@@ -357,8 +342,8 @@ delegate_dispatch2!(Badge);
 //
 // Mirrors src/overlay/overlay.css and main.tsx: a dark disc, and per state a
 // spinning red ring + white microphone, three white dots (the CSS wave is not
-// mirrored), or an amber "!". All geometry is in badge pixels (56 x 56,
-// centre 28, 28).
+// mirrored), an amber "!", a blue progress ring + white download arrow, or a
+// spinning blue ring. All geometry is in badge pixels (56 x 56, centre 28, 28).
 
 type P = (f32, f32);
 /// Premultiplied RGBA, each channel 0..=1.
@@ -370,6 +355,10 @@ const DISC_ALPHA: f32 = 0.85;
 const RED: [f32; 3] = [239.0 / 255.0, 68.0 / 255.0, 68.0 / 255.0];
 const AMBER: [f32; 3] = [245.0 / 255.0, 158.0 / 255.0, 11.0 / 255.0];
 const WHITE: [f32; 3] = [1.0, 1.0, 1.0];
+const BLUE: [f32; 3] = [96.0 / 255.0, 165.0 / 255.0, 250.0 / 255.0];
+/// Alpha of the white track behind the download progress (CSS `.track`).
+const TRACK_ALPHA: f32 = 0.15;
+const TAU: f32 = std::f32::consts::TAU;
 
 fn dist(a: P, b: P) -> f32 {
     ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
@@ -399,11 +388,19 @@ fn over(dst: &mut Px, rgb: [f32; 3], alpha: f32) {
     dst[3] = alpha + dst[3] * keep;
 }
 
-/// Signed distance (badge pixels) of the white microphone glyph; the CSS draws
-/// it in a 24 x 24 viewBox scaled to 46 % of the badge with a 1.8 round stroke.
+/// Scale of the 24 x 24 glyph viewBox, which the CSS draws at 46 % of the badge.
+const GLYPH: f32 = PX as f32 * 0.46 / 24.0;
+
+/// Badge pixel `p` in glyph viewBox coordinates.
+fn glyph_point(p: P) -> P {
+    ((p.0 - CENTER) / GLYPH + 12.0, (p.1 - CENTER) / GLYPH + 12.0)
+}
+
+/// Signed distance (badge pixels) of the white microphone glyph, drawn with a
+/// 1.8 round stroke.
 fn mic_sd(p: P) -> f32 {
-    let s = PX as f32 * 0.46 / 24.0;
-    let q = ((p.0 - CENTER) / s + 12.0, (p.1 - CENTER) / s + 12.0);
+    let s = GLYPH;
+    let q = glyph_point(p);
     let half_stroke = 0.9;
     let capsule = seg_dist(q, (12.0, 6.0), (12.0, 11.0)) - 3.0 - half_stroke;
     let arc = if q.1 >= 11.0 {
@@ -416,20 +413,53 @@ fn mic_sd(p: P) -> f32 {
     capsule.min(arc).min(stem).min(base) * s
 }
 
-/// Signed distance of the red ring segment: 30 % of the circle (radius 25,
-/// stroke 2.5, round caps) starting at angle `spin`, as the CSS `.ring` draws it.
-fn ring_sd(p: P, spin: f32) -> f32 {
-    const RADIUS: f32 = 25.0;
-    const HALF_STROKE: f32 = 1.25;
-    const SPAN: f32 = 0.3 * std::f32::consts::TAU;
-    let (dx, dy) = (p.0 - CENTER, p.1 - CENTER);
-    let rel = (dy.atan2(dx) - spin).rem_euclid(std::f32::consts::TAU);
-    if rel <= SPAN {
-        (dist(p, (CENTER, CENTER)) - RADIUS).abs() - HALF_STROKE
-    } else {
-        let cap = |a: f32| dist(p, (CENTER + RADIUS * a.cos(), CENTER + RADIUS * a.sin()));
-        cap(spin).min(cap(spin + SPAN)) - HALF_STROKE
+/// Signed distance of the white download arrow glyph (stroke 1.8, round caps):
+/// a shaft, a chevron and a base line, as `.arrow` in main.tsx.
+fn arrow_sd(p: P) -> f32 {
+    let q = glyph_point(p);
+    let shaft = seg_dist(q, (12.0, 4.0), (12.0, 15.0));
+    let left = seg_dist(q, (7.0, 10.0), (12.0, 15.0));
+    let right = seg_dist(q, (17.0, 10.0), (12.0, 15.0));
+    let base = seg_dist(q, (5.0, 20.0), (19.0, 20.0));
+    (shaft.min(left).min(right).min(base) - 0.9) * GLYPH
+}
+
+/// Ring of radius 25 and stroke 2.5, as the CSS `.ring` draws it.
+const RING_RADIUS: f32 = 25.0;
+const RING_HALF_STROKE: f32 = 1.25;
+
+/// Signed distance of the full ring (the download track).
+fn track_sd(p: P) -> f32 {
+    (dist(p, (CENTER, CENTER)) - RING_RADIUS).abs() - RING_HALF_STROKE
+}
+
+/// Signed distance of a ring segment with round caps, clockwise from angle
+/// `start` over `span` radians (screen y points down).
+fn arc_sd(p: P, start: f32, span: f32) -> f32 {
+    if span <= 0.0 {
+        return f32::MAX;
     }
+    let (dx, dy) = (p.0 - CENTER, p.1 - CENTER);
+    let rel = (dy.atan2(dx) - start).rem_euclid(TAU);
+    if rel <= span || span >= TAU {
+        track_sd(p)
+    } else {
+        let cap = |a: f32| {
+            dist(
+                p,
+                (
+                    CENTER + RING_RADIUS * a.cos(),
+                    CENTER + RING_RADIUS * a.sin(),
+                ),
+            )
+        };
+        cap(start).min(cap(start + span)) - RING_HALF_STROKE
+    }
+}
+
+/// Signed distance of the spinning segment: 30 % of the ring starting at `spin`.
+fn ring_sd(p: P, spin: f32) -> f32 {
+    arc_sd(p, spin, 0.3 * TAU)
 }
 
 fn shade(kind: Kind, spin: f32, p: P) -> Px {
@@ -448,6 +478,13 @@ fn shade(kind: Kind, spin: f32, p: P) -> Px {
                 .fold(f32::MAX, f32::min);
             over(&mut px, WHITE, coverage(d));
         }
+        Kind::Downloading(progress) => {
+            over(&mut px, WHITE, TRACK_ALPHA * coverage(track_sd(p)));
+            let span = progress.clamp(0.0, 1.0) * TAU;
+            over(&mut px, BLUE, coverage(arc_sd(p, -TAU / 4.0, span)));
+            over(&mut px, WHITE, coverage(arrow_sd(p)));
+        }
+        Kind::Loading => over(&mut px, BLUE, coverage(ring_sd(p, spin))),
         Kind::Error => {
             let stem = seg_dist(p, (CENTER, 21.6), (CENTER, 30.4)) - 2.2;
             let dot = dist(p, (CENTER, 35.2)) - 2.4;

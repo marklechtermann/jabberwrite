@@ -3,6 +3,9 @@
 #[cfg(target_os = "linux")]
 mod layer;
 
+use std::sync::Mutex;
+
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
 const LABEL: &str = "overlay";
@@ -12,6 +15,29 @@ const LABEL: &str = "overlay";
 const SIZE: f64 = 160.0;
 const BADGE: f64 = 56.0;
 const BOTTOM_MARGIN: f64 = 80.0;
+
+/// What the badge shows. Serialized for the webview as
+/// `{ "state": "downloading", "progress": 0.42 }`.
+#[derive(Clone, Copy, PartialEq, Debug, Serialize)]
+#[serde(tag = "state", content = "progress", rename_all = "lowercase")]
+pub enum State {
+    /// Model download; progress between 0.0 and 1.0.
+    Downloading(f32),
+    /// Model is being loaded.
+    Loading,
+    Recording,
+    Processing,
+    Error,
+}
+
+/// Last state shown, `None` while hidden. The overlay webview reads it on
+/// mount, since events emitted before its listener exists are lost.
+static CURRENT: Mutex<Option<State>> = Mutex::new(None);
+
+#[tauri::command]
+pub fn overlay_state() -> Option<State> {
+    *CURRENT.lock().unwrap()
+}
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     // Wayland: no webview window, the badge is a layer-shell surface (ADR 0008).
@@ -36,8 +62,9 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Show the overlay in `state` ("recording", "processing" or "error").
-pub fn show(app: &AppHandle, state: &str) {
+/// Show the overlay in `state`.
+pub fn show(app: &AppHandle, state: State) {
+    *CURRENT.lock().unwrap() = Some(state);
     #[cfg(target_os = "linux")]
     if crate::session::is_wayland() {
         if let Some(handle) = app.try_state::<layer::Handle>() {
@@ -64,6 +91,7 @@ pub fn show(app: &AppHandle, state: &str) {
 }
 
 pub fn hide(app: &AppHandle) {
+    *CURRENT.lock().unwrap() = None;
     #[cfg(target_os = "linux")]
     if crate::session::is_wayland() {
         if let Some(handle) = app.try_state::<layer::Handle>() {

@@ -87,6 +87,7 @@ pub fn run() {
             app::open_permission_settings,
             update::check_update,
             update::install_update,
+            overlay::overlay_state,
         ])
         .setup(move |tauri_app| {
             #[cfg(target_os = "linux")]
