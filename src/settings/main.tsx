@@ -124,19 +124,29 @@ type RecordState =
   | { kind: "done"; text: string | null }
   | { kind: "error"; message: string };
 
-/** Hold to record, release to stop. The text is shown here, not pasted. */
+/** Click to start, click to stop. The text is shown here, not pasted. */
 function RecordButton() {
   const [state, setState] = useState<RecordState>({ kind: "idle" });
   const active = useRef(false);
 
-  const start = () => {
-    if (active.current) return;
-    active.current = true;
-    setState({ kind: "recording" });
-    invoke("record_start");
-  };
-  const stop = () => {
-    if (!active.current) return;
+  // Never leave the microphone open when the topic or window goes away.
+  useEffect(
+    () => () => {
+      if (active.current) {
+        active.current = false;
+        invoke("record_stop").catch(() => {});
+      }
+    },
+    [],
+  );
+
+  const toggle = () => {
+    if (!active.current) {
+      active.current = true;
+      setState({ kind: "recording" });
+      invoke("record_start");
+      return;
+    }
     active.current = false;
     setState({ kind: "processing" });
     invoke<string | null>("record_stop")
@@ -150,23 +160,9 @@ function RecordButton() {
         <button
           className={`record ${state.kind === "recording" ? "active" : ""}`}
           disabled={state.kind === "processing"}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            start();
-          }}
-          onPointerUp={stop}
-          onPointerCancel={stop}
-          onLostPointerCapture={stop}
-          onKeyDown={(e) => {
-            if ((e.key === " " || e.key === "Enter") && !e.repeat) {
-              e.preventDefault();
-              start();
-            }
-          }}
-          onKeyUp={(e) => (e.key === " " || e.key === "Enter") && stop()}
-          onBlur={stop}
+          onClick={toggle}
         >
-          {state.kind === "recording" ? "Recording… release to stop" : "Hold to record"}
+          {state.kind === "recording" ? "Stop recording" : "Start recording"}
         </button>
         <span className="muted">
           {state.kind === "processing" && "Recognizing…"}
@@ -446,7 +442,7 @@ function Settings() {
             <section>
               <h2>Test recording</h2>
               <p className="muted">
-                Hold the button and speak, release to stop. The text appears here and in the history; it is not
+                Click to start recording, click again to stop. The text appears here and in the history; it is not
                 pasted.
               </p>
               <RecordButton />
