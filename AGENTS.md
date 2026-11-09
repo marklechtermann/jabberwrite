@@ -37,6 +37,21 @@ All planning lives in `docs/`, written in English. Specs and ADRs are one file p
 - When working in parallel with other agents, use a separate git worktree per spec branch.
 - Stay within the spec's scope. Anything new you notice goes into `docs/ideas.md`, not into the current branch.
 
+### Post-merge cleanup checklist
+
+After a PR is merged to `main`, clean up your branches immediately:
+
+1. PR merged ✓
+2. Update spec `status: done` (commit to main)
+3. Delete local branch: `git branch -d spec/NNNN-slug` (or `agents/...`)
+4. Delete remote branch: `git push origin --delete spec/NNNN-slug`
+5. If using a worktree: `git worktree remove /path/to/worktree`
+
+One-liner for cleanup (after PR is merged):
+```bash
+git branch -d spec/NNNN-slug && git push origin --delete spec/NNNN-slug
+```
+
 ### License compliance
 
 - Whenever you add, remove or update a dependency (`src-tauri/Cargo.toml`, `package.json`, lockfiles), run `npm run licenses` and commit the regenerated `ACKNOWLEDGEMENTS.md` (the single file with all third-party licenses). It feeds the Licenses topic in the settings window, and CI fails when it is stale.
