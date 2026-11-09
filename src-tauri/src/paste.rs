@@ -15,6 +15,10 @@ impl Clipboard {
             .map_err(|e| format!("clipboard: {e}"))
     }
 
+    pub fn get(&mut self) -> Option<String> {
+        self.0.get_text().ok()
+    }
+
     pub fn set(&mut self, text: &str) -> Result<(), String> {
         self.0.set_text(text).map_err(|e| format!("clipboard: {e}"))
     }

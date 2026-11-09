@@ -82,6 +82,7 @@ pub fn run() {
             app::clear_history,
             app::copy_text,
             app::save_clear_history_on_exit,
+            app::save_copy_to_clipboard,
             app::open_url,
             app::permissions,
             app::open_permission_settings,

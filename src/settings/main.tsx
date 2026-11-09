@@ -12,6 +12,7 @@ type AppInfo = {
   log_dir: string;
   history_path: string;
   clear_history_on_exit: boolean;
+  copy_to_clipboard: boolean;
   config_error: string | null;
   status: string;
   shortcut: string;
@@ -397,6 +398,11 @@ function Settings() {
       .then(() => setInfo({ ...info, clear_history_on_exit: enabled }))
       .catch((e) => setMessage({ text: String(e), error: true }));
 
+  const saveCopyToClipboard = (enabled: boolean) =>
+    invoke("save_copy_to_clipboard", { enabled })
+      .then(() => setInfo({ ...info, copy_to_clipboard: enabled }))
+      .catch((e) => setMessage({ text: String(e), error: true }));
+
   const clearHistory = () =>
     invoke("clear_history")
       .then(() => setHistory([]))
@@ -446,6 +452,18 @@ function Settings() {
                 pasted.
               </p>
               <RecordButton />
+              <h2>Clipboard</h2>
+              <p className="muted">
+                Pasting uses the clipboard briefly. By default your previous clipboard text is restored afterwards.
+              </p>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={info.copy_to_clipboard}
+                  onChange={(e) => saveCopyToClipboard(e.target.checked)}
+                />
+                Keep recognized text in the clipboard
+              </label>
             </section>
           )}
 
