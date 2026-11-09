@@ -241,10 +241,26 @@ impl App {
     }
 
     /// Copy to the clipboard and send the paste shortcut to the focused window.
+    /// Unless `copy_to_clipboard` is set, the previous clipboard text is
+    /// restored afterwards.
     fn paste_text(&self, text: &str) -> Result<(), String> {
+        let keep = self.config.lock().unwrap().copy_to_clipboard;
+        let previous = if keep { None } else { self.clipboard_text() };
         self.copy(text)?;
         std::thread::sleep(Duration::from_millis(50));
 
+        let result = self.send_paste();
+        if let Some(previous) = previous {
+            // The target app reads the clipboard asynchronously.
+            std::thread::sleep(Duration::from_millis(200));
+            if let Err(e) = self.copy(&previous) {
+                tracing::warn!("cannot restore clipboard: {e}");
+            }
+        }
+        result
+    }
+
+    fn send_paste(&self) -> Result<(), String> {
         let shortcut = Shortcut::parse(&self.config.lock().unwrap().paste_shortcut)?;
         #[cfg(target_os = "linux")]
         if paste::wayland::active() {
@@ -257,6 +273,14 @@ impl App {
             })
             .map_err(|e| e.to_string())?;
         rx.recv().map_err(|e| e.to_string())?
+    }
+
+    fn clipboard_text(&self) -> Option<String> {
+        let mut clipboard = self.clipboard.lock().unwrap();
+        if clipboard.is_none() {
+            *clipboard = Some(Clipboard::new().ok()?);
+        }
+        clipboard.as_mut().unwrap().get()
     }
 
     fn copy(&self, text: &str) -> Result<(), String> {
@@ -307,6 +331,7 @@ pub struct AppInfo {
     log_dir: String,
     history_path: String,
     clear_history_on_exit: bool,
+    copy_to_clipboard: bool,
     config_error: Option<String>,
     status: String,
     shortcut: String,
@@ -326,6 +351,7 @@ pub fn app_info(app: State) -> AppInfo {
         log_dir: app.paths.logs.display().to_string(),
         history_path: app.paths.history.display().to_string(),
         clear_history_on_exit: config.clear_history_on_exit,
+        copy_to_clipboard: config.copy_to_clipboard,
         config_error: app.config_error.clone(),
         status: app.status(),
         shortcut: config.shortcut,
@@ -359,6 +385,19 @@ pub fn save_clear_history_on_exit(app: State, enabled: bool) -> Result<(), Strin
     let mut config = app.config.lock().unwrap();
     let mut updated = config.clone();
     updated.clear_history_on_exit = enabled;
+    crate::config::save(&app.paths.config, &updated)?;
+    *config = updated;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_copy_to_clipboard(app: State, enabled: bool) -> Result<(), String> {
+    if app.config_error.is_some() {
+        return Err("The config file is invalid. Fix it by hand and restart.".into());
+    }
+    let mut config = app.config.lock().unwrap();
+    let mut updated = config.clone();
+    updated.copy_to_clipboard = enabled;
     crate::config::save(&app.paths.config, &updated)?;
     *config = updated;
     Ok(())

@@ -16,6 +16,8 @@ pub struct Config {
     pub model_path: Option<PathBuf>,
     /// Delete the recognized-text history whenever Jabberwrite quits.
     pub clear_history_on_exit: bool,
+    /// Leave the recognized text in the clipboard after pasting it.
+    pub copy_to_clipboard: bool,
 }
 
 impl Default for Config {
@@ -26,6 +28,7 @@ impl Default for Config {
                 paste_shortcut: "Cmd+V".into(),
                 model_path: None,
                 clear_history_on_exit: false,
+                copy_to_clipboard: false,
             }
         } else {
             Config {
@@ -33,6 +36,7 @@ impl Default for Config {
                 paste_shortcut: "Ctrl+V".into(),
                 model_path: None,
                 clear_history_on_exit: false,
+                copy_to_clipboard: false,
             }
         }
     }
