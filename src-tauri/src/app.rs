@@ -291,6 +291,17 @@ impl App {
         clipboard.as_mut().unwrap().set(text)
     }
 
+    /// Copy the most recent recognized text to the clipboard (tray menu).
+    pub fn copy_last_text(self: &Arc<Self>) {
+        let result = match self.history.last() {
+            Some(entry) => self.copy(&entry.text),
+            None => Err("no recognized text yet".into()),
+        };
+        if let Err(e) = result {
+            self.fail(e);
+        }
+    }
+
     pub fn clear_history_if_configured(&self) {
         if self.config.lock().unwrap().clear_history_on_exit {
             if let Err(e) = self.history.clear() {

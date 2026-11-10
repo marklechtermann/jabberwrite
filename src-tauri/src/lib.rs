@@ -117,6 +117,13 @@ pub fn run() {
                 &[
                     &status,
                     &PredefinedMenuItem::separator(&handle)?,
+                    &MenuItem::with_id(
+                        &handle,
+                        "copy_last",
+                        "Copy Last Text",
+                        true,
+                        None::<&str>,
+                    )?,
                     &MenuItem::with_id(&handle, "settings", "Settings…", true, None::<&str>)?,
                     &MenuItem::with_id(
                         &handle,
@@ -132,6 +139,10 @@ pub fn run() {
                 .icon(tauri_app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|handle, event| match event.id().as_ref() {
+                    "copy_last" => {
+                        let app = handle.state::<Arc<App>>().inner().clone();
+                        std::thread::spawn(move || app.copy_last_text());
+                    }
                     "settings" => handle.state::<Arc<App>>().show_settings(),
                     "update" => {
                         let app = handle.state::<Arc<App>>().inner().clone();

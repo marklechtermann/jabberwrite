@@ -18,6 +18,8 @@
 
 Change the shortcut via tray → **Settings…**.
 
+If the text landed in the wrong window, tray → **Copy Last Text** puts the most recent recognized text back in the clipboard.
+
 ### Updating
 
 Updates are checked only when you ask: tray → **Check for Updates…**, or **Settings… → Updates**. If a newer release exists, Jabberwrite offers to install it and restarts itself. Updates are signed; the app rejects anything not signed with the project key. Builds from before this feature (and the old `.msi`) must be updated by hand once, using the NSIS installer.
