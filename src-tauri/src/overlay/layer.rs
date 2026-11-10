@@ -424,6 +424,24 @@ fn arrow_sd(p: P) -> f32 {
     (shaft.min(left).min(right).min(base) - 0.9) * GLYPH
 }
 
+/// Signed distance of the white hourglass glyph (stroke 1.8, round joins): a
+/// closed outline of two bars and a bow tie, as `.hourglass` in main.tsx.
+fn hourglass_sd(p: P) -> f32 {
+    let q = glyph_point(p);
+    let pts = [
+        (7.0, 4.0),
+        (17.0, 4.0),
+        (12.0, 12.0),
+        (17.0, 20.0),
+        (7.0, 20.0),
+        (12.0, 12.0),
+    ];
+    let d = (0..pts.len())
+        .map(|i| seg_dist(q, pts[i], pts[(i + 1) % pts.len()]))
+        .fold(f32::MAX, f32::min);
+    (d - 0.9) * GLYPH
+}
+
 /// Ring of radius 25 and stroke 2.5, as the CSS `.ring` draws it.
 const RING_RADIUS: f32 = 25.0;
 const RING_HALF_STROKE: f32 = 1.25;
@@ -484,7 +502,10 @@ fn shade(kind: Kind, spin: f32, p: P) -> Px {
             over(&mut px, BLUE, coverage(arc_sd(p, -TAU / 4.0, span)));
             over(&mut px, WHITE, coverage(arrow_sd(p)));
         }
-        Kind::Loading => over(&mut px, BLUE, coverage(ring_sd(p, spin))),
+        Kind::Loading => {
+            over(&mut px, BLUE, coverage(ring_sd(p, spin)));
+            over(&mut px, WHITE, coverage(hourglass_sd(p)));
+        }
         Kind::Error => {
             let stem = seg_dist(p, (CENTER, 21.6), (CENTER, 30.4)) - 2.2;
             let dot = dist(p, (CENTER, 35.2)) - 2.4;
