@@ -63,6 +63,10 @@ impl History {
             .collect()
     }
 
+    pub fn last(&self) -> Option<Entry> {
+        self.list().into_iter().next()
+    }
+
     pub fn clear(&self) -> Result<(), String> {
         let _guard = self.lock.lock().unwrap();
         fs::write(&self.path, "").map_err(|e| format!("history: {e}"))
