@@ -6,55 +6,33 @@ This file provides guidance to AI coding agents when working with code in this r
 
 Jabberwrite is a voice-to-text (dictation) system built primarily for agentic coding and modern AI workflows: speak a prompt and get clean text into a coding agent or editor.
 
-## Guiding principle
+## Finish flow (handover)
 
-Keep it simple. No bloatware, no feature creep, no unnecessary dependencies or configuration surface. When choosing between a smaller solution and a more "complete" one, prefer the smaller one unless the user asks otherwise.
+All implementation work happens in a separate git worktree on its own branch, never directly on `main`.
 
-## Status
+When an implementation is complete, ask the user: **"Run the full finish flow?"** (commit, PR, auto-merge, cleanup). If the user says yes, or says "mach alles fertig", "mach alles sauber", "clean up", "finish" or "handover", run every step below without asking again. Otherwise ask before each step.
 
-No code yet. No tech stack, build, lint or test commands exist. Once they do, add them here along with a short architecture overview.
+1. **Commit** all changes on the worktree branch.
+2. **Push**: `git push -u origin <branch>`.
+3. **Open the PR** with `gh pr create --fill` (reference the spec or issue if there is one). If `gh` is not available, stop here and give the user the compare URL.
+4. **Auto-merge**: `gh pr merge <n> --auto --squash`. GitHub merges once checks are green and deletes the remote branch itself.
+5. **Wait for the merge**: `gh pr checks <n> --watch`, then confirm with `gh pr view <n> --json state -q .state` that it is `MERGED`. If checks fail or the PR is blocked, stop and report; do not clean up.
+6. **Clean up locally**, run from the main worktree, not from the one being removed:
+   ```bash
+   git worktree remove <worktree-path>
+   git branch -D <branch>   # -D: squash merges are not seen as merged by -d
+   git checkout main && git pull --prune
+   ```
+   Only delete the branch after step 5 confirmed `MERGED`.
 
-## Workflow: ideas → specs → ADRs → code
+If the PR was already opened earlier, "clean up" resumes at the first step not yet done.
 
-All planning lives in `docs/`, written in English. Specs and ADRs are one file per item; ideas are a single collection file. Templates for specs and ADRs are in `docs/templates/`.
+## Agent skills
 
-| Path           | Holds                                    | Naming                 |
-| -------------- | ---------------------------------------- | ---------------------- |
-| `docs/ideas.md`| Single inbox of raw ideas, no ceremony   | one `##` section per idea |
-| `docs/specs/`  | What to build, ready for implementation  | `NNNN-slug.md`         |
-| `docs/adr/`    | Why we chose X over Y                    | `NNNN-slug.md`         |
+### Issue tracker
 
-1. **Idea.** Anyone (human or agent) may add an idea to `docs/ideas.md` at any time as a new `##` section with a few sentences. Never create one file per idea. When the user mentions an idea in passing, capture it there.
-2. **Spec.** Only the user decides that an idea becomes a spec. Agents may draft the spec when asked, but never promote an idea on their own. On promotion, create `docs/specs/NNNN-slug.md` and remove the idea's section from `docs/ideas.md`: once an idea is formulated as a spec, it no longer lives in the ideas file. Also remove ideas that are already implemented.
-3. **ADR.** When a spec requires a real decision (engine, language, library, architecture), record it as an ADR. ADRs are never edited after acceptance except to set `status: superseded by NNNN`; a changed decision gets a new ADR.
-4. **Implementation.** One spec per branch, named `spec/NNNN-slug`, merged through a PR that references the spec. Keep the spec's task checklist and `status` up to date while working.
+Issues live as local markdown files under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
 
-### Rules for agents
+### Domain docs
 
-- Spec statuses: `draft` → `accepted` → `in-progress` → `done`. Only pick up specs with `status: accepted`; set `in-progress` when you start.
-- Before implementing, read the spec and every ADR it links. Do not reopen decisions recorded in an accepted ADR; propose a new ADR instead.
-- Numbers are sequential per directory. Take the next free number on `main` at the time you create the file.
-- When working in parallel with other agents, use a separate git worktree per spec branch.
-- Stay within the spec's scope. Anything new you notice goes into `docs/ideas.md`, not into the current branch.
-
-### Post-merge cleanup checklist
-
-After a PR is merged to `main`, clean up your branches immediately:
-
-1. PR merged ✓
-2. Update spec `status: done` (commit to main)
-3. Delete local branch: `git branch -d spec/NNNN-slug` (or `agents/...`)
-4. Delete remote branch: `git push origin --delete spec/NNNN-slug`
-5. If using a worktree: `git worktree remove /path/to/worktree`
-
-One-liner for cleanup (after PR is merged):
-```bash
-git branch -d spec/NNNN-slug && git push origin --delete spec/NNNN-slug
-```
-
-### License compliance
-
-- Whenever you add, remove or update a dependency (`src-tauri/Cargo.toml`, `package.json`, lockfiles), run `npm run licenses` and commit the regenerated `ACKNOWLEDGEMENTS.md` (the single file with all third-party licenses). It feeds the Licenses topic in the settings window, and CI fails when it is stale.
-- Components outside Cargo and npm (downloaded binaries, models, vendored code) go into the `manual` list in `scripts/generate-licenses.mjs`, with their license text in `third-party/`. This includes native libraries pulled in by a crate's build script (check what it downloads or links).
-- `npm run licenses` fails on licenses outside its allow-list (permissive, Apache-2.0-compatible). Do not extend the allow-list yourself; ask the user.
-- Check that the license of a new dependency is compatible with Apache-2.0 (ADR 0006). Ask the user before adding anything copyleft.
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
