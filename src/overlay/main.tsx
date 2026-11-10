@@ -44,6 +44,11 @@ function Overlay() {
           <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
         </svg>
       )}
+      {state === "loading" && (
+        <svg className="glyph hourglass" viewBox="0 0 24 24">
+          <path d="M7 4h10l-5 8 5 8H7l5-8z" />
+        </svg>
+      )}
       {state === "downloading" && (
         <>
           <svg className="progress" viewBox="0 0 56 56">
