@@ -85,6 +85,13 @@ jobs:
         with:
           workspaces: src-tauri
 
+      # sherpa-onnx-sys downloads its native libs into target/sherpa-onnx-prebuilt, which
+      # rust-cache does not keep. A restored build-script fingerprint would skip the download
+      # and fail with "could not find native static library sherpa-onnx-c-api", so force a rerun.
+      - name: Force sherpa-onnx native lib download
+        shell: bash
+        run: rm -rf src-tauri/target/*/.fingerprint/sherpa-onnx-sys-* src-tauri/target/*/build/sherpa-onnx-sys-*
+
       - name: Set version
         shell: bash
         run: perl -pi -e 's/^version = ".*"/version = "${{ needs.create-release.outputs.version }}"/ if $. < 10' src-tauri/Cargo.toml
