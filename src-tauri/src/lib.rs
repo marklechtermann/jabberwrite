@@ -69,6 +69,10 @@ pub fn run() {
             handle.state::<Arc<App>>().show_settings();
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -83,6 +87,8 @@ pub fn run() {
             app::copy_text,
             app::save_clear_history_on_exit,
             app::save_copy_to_clipboard,
+            app::autostart_enabled,
+            app::set_autostart,
             app::open_url,
             app::permissions,
             app::open_permission_settings,

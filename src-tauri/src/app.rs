@@ -414,6 +414,24 @@ pub fn save_copy_to_clipboard(app: State, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// The OS autostart entry is the single source of truth (not stored in config.json).
+#[tauri::command]
+pub fn autostart_enabled(handle: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    handle.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_autostart(handle: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = handle.autolaunch();
+    let result = if enabled { launcher.enable() } else { launcher.disable() };
+    result.map_err(|e| {
+        tracing::error!("autostart: {e}");
+        format!("Cannot change autostart: {e}")
+    })
+}
+
 #[tauri::command]
 pub fn history(app: State) -> Vec<Entry> {
     app.history.list()

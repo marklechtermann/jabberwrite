@@ -16,7 +16,7 @@
 2. Start Jabberwrite. It lives in the system tray. On first launch it downloads the speech model; the tray menu shows progress.
 3. Press **Ctrl+Super** (Windows/Linux) or **Ctrl+Cmd** (macOS) and release it to start recording. Press and release again to stop. The transcript is pasted into the focused window.
 
-Change the shortcut via tray → **Settings…**.
+Change the shortcut via tray → **Settings…**. There you can also enable **Start Jabberwrite when I log in** (off by default; on Windows this adds a `Run` entry in your user profile).
 
 If the text landed in the wrong window, tray → **Copy Last Text** puts the most recent recognized text back in the clipboard.
 

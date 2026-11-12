@@ -350,6 +350,7 @@ function Settings() {
   const initialTopicChosen = useRef(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [autostart, setAutostart] = useState(false);
 
   const refresh = () => {
     invoke<AppInfo>("app_info").then(setInfo);
@@ -361,6 +362,7 @@ function Settings() {
       }
     });
     invoke<HistoryEntry[]>("history").then(setHistory);
+    invoke<boolean>("autostart_enabled").then(setAutostart).catch(() => {});
   };
 
   const selectTopic = (t: Topic) => {
@@ -403,6 +405,14 @@ function Settings() {
       .then(() => setInfo({ ...info, copy_to_clipboard: enabled }))
       .catch((e) => setMessage({ text: String(e), error: true }));
 
+  // The checkbox always shows the real OS state, also after a failed toggle.
+  const saveAutostart = (enabled: boolean) =>
+    invoke("set_autostart", { enabled })
+      .catch((e) => setMessage({ text: String(e), error: true }))
+      .then(() => invoke<boolean>("autostart_enabled"))
+      .then(setAutostart)
+      .catch(() => {});
+
   const clearHistory = () =>
     invoke("clear_history")
       .then(() => setHistory([]))
@@ -441,6 +451,16 @@ function Settings() {
               <h2>Shortcut</h2>
               <p className="muted">Press once to start recording, again to stop.</p>
               <ShortcutField value={info.shortcut} mac={mac} onSave={saveShortcut} />
+            </section>
+          )}
+
+          {topic === "general" && (
+            <section>
+              <h2>Startup</h2>
+              <label className="check">
+                <input type="checkbox" checked={autostart} onChange={(e) => saveAutostart(e.target.checked)} />
+                Start Jabberwrite when I log in
+              </label>
             </section>
           )}
 
