@@ -44,7 +44,8 @@ function HistoryItem({ entry }: { entry: HistoryEntry }) {
 type UpdateStatus =
   | { kind: "idle" | "checking" | "up_to_date" | "installing" }
   | { kind: "available"; version: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "managed"; hint: string };
 
 type Permissions = {
   microphone: boolean;
@@ -203,6 +204,16 @@ function PermissionRow({ label, kind, granted }: { label: string; kind: string; 
 }
 
 function UpdateSection({ status }: { status: UpdateStatus }) {
+  if (status.kind === "managed") {
+    return (
+      <section>
+        <h2>Updates</h2>
+        <div className="row">
+          <span>{status.hint}</span>
+        </div>
+      </section>
+    );
+  }
   const busy = status.kind === "checking" || status.kind === "installing";
   return (
     <section>

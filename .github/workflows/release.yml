@@ -150,3 +150,30 @@ jobs:
               release_id: ${{ needs.create-release.outputs.release_id }},
               draft: false,
             });
+
+  # Push the AUR package jabberwrite-bin (ADR 0010). Skipped until the secret AUR_SSH_PRIVATE_KEY
+  # is set, so releases never fail because of the AUR.
+  publish-aur:
+    needs: [create-release, publish-release]
+    runs-on: ubuntu-latest
+    steps:
+      - id: key
+        run: echo "present=${{ secrets.AUR_SSH_PRIVATE_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+
+      - name: Set pkgver
+        if: steps.key.outputs.present == 'true'
+        run: sed -i -e 's/^pkgver=.*/pkgver=${{ needs.create-release.outputs.version }}/' -e 's/^pkgrel=.*/pkgrel=1/' packaging/aur/PKGBUILD
+
+      - uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
+        if: steps.key.outputs.present == 'true'
+        with:
+          pkgname: jabberwrite-bin
+          pkgbuild: packaging/aur/PKGBUILD
+          updpkgsums: true
+          commit_username: ${{ vars.AUR_USERNAME || 'jabberwrite-release' }}
+          commit_email: ${{ vars.AUR_EMAIL || 'jabberwrite-release@users.noreply.github.com' }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ needs.create-release.outputs.version }}

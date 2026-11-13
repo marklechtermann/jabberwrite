@@ -78,7 +78,7 @@ impl App {
             clipboard: Mutex::new(None),
             status: Mutex::new("Starting".into()),
             tray: OnceLock::new(),
-            update: update::State::default(),
+            update: update::State::new(),
             updating: AtomicBool::new(false),
         }
     }

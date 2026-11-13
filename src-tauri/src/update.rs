@@ -1,5 +1,7 @@
 //! In-app updates from GitHub Releases (ADR 0005). Checks only run on request, never in the background.
+//! Installs owned by a system package manager (ADR 0010) turn the in-app updater off.
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
@@ -23,6 +25,10 @@ pub enum Status {
     Error {
         message: String,
     },
+    /// A package manager owns the install and its updates (ADR 0010). Final: never left.
+    Managed {
+        hint: String,
+    },
 }
 
 #[derive(Default)]
@@ -32,6 +38,20 @@ pub struct State {
 }
 
 impl State {
+    pub fn new() -> Self {
+        let status = match package_manager_hint() {
+            Some(hint) => {
+                tracing::info!("updates are managed by the package manager");
+                Status::Managed { hint }
+            }
+            None => Status::Idle,
+        };
+        Self {
+            status: Mutex::new(status),
+            pending: Mutex::new(None),
+        }
+    }
+
     pub fn status(&self) -> Status {
         self.status.lock().unwrap().clone()
     }
@@ -40,6 +60,34 @@ impl State {
 fn set_status(app: &App, status: Status) {
     *app.update.status.lock().unwrap() = status.clone();
     let _ = app.handle.emit("update", status);
+}
+
+/// Packages that own the install ship this file next to the binary's prefix, for example
+/// `/usr/share/jabberwrite/package-manager` for `/usr/bin/jabberwrite` (ADR 0010).
+fn marker_path(exe: &Path) -> Option<PathBuf> {
+    Some(
+        exe.parent()?
+            .parent()?
+            .join("share/jabberwrite/package-manager"),
+    )
+}
+
+const DEFAULT_HINT: &str = "Jabberwrite is updated by your package manager.";
+
+/// The marker's text tells the user how to update; an empty marker gets a generic hint.
+fn read_hint(marker: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(marker).ok()?;
+    let text = text.trim();
+    Some(if text.is_empty() { DEFAULT_HINT } else { text }.to_string())
+}
+
+fn package_manager_hint() -> Option<String> {
+    // An AppImage runs from its own mount and always updates itself.
+    if std::env::var_os("APPIMAGE").is_some() {
+        return None;
+    }
+    let exe = std::env::current_exe().ok()?;
+    read_hint(&marker_path(&exe)?)
 }
 
 /// Dev builds report `…-dev+sha` and would see every release as an update.
@@ -52,7 +100,11 @@ pub async fn check(app: &App) -> Status {
     {
         // Don't start a second check or touch the state while an install runs.
         let mut status = app.update.status.lock().unwrap();
-        if matches!(*status, Status::Checking | Status::Installing) {
+        // A managed install never checks, and never leaves this state.
+        if matches!(
+            *status,
+            Status::Checking | Status::Installing | Status::Managed { .. }
+        ) {
             return status.clone();
         }
         *status = Status::Checking;
@@ -103,6 +155,9 @@ async fn find_update(app: &App) -> Result<Option<Update>, String> {
 
 /// Download and install the pending update, then restart. Only returns on failure.
 pub async fn install(app: &Arc<App>) -> Result<(), String> {
+    if let Status::Managed { hint } = app.update.status() {
+        return Err(hint);
+    }
     let update = app
         .update
         .pending
@@ -176,6 +231,10 @@ pub async fn check_with_dialogs(app: Arc<App>) {
             let text = format!("Could not check for updates: {message}");
             notify(&app, MessageDialogKind::Error, text).await;
         }
+        Status::Managed { hint } => {
+            let text = format!("You have Jabberwrite {}.\n\n{hint}", crate::VERSION);
+            notify(&app, MessageDialogKind::Info, text).await;
+        }
         // A check or install is already running; the status shows its progress.
         Status::Idle | Status::Checking | Status::Installing => {}
     }
@@ -219,4 +278,44 @@ pub async fn check_update(app: tauri::State<'_, Arc<App>>) -> Result<Status, Str
 #[tauri::command]
 pub async fn install_update(app: tauri::State<'_, Arc<App>>) -> Result<(), String> {
     install(&app).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marker_sits_under_the_install_prefix() {
+        assert_eq!(
+            marker_path(Path::new("/usr/bin/jabberwrite")),
+            Some(PathBuf::from("/usr/share/jabberwrite/package-manager"))
+        );
+        assert_eq!(
+            marker_path(Path::new("/usr/local/bin/jabberwrite")),
+            Some(PathBuf::from(
+                "/usr/local/share/jabberwrite/package-manager"
+            ))
+        );
+    }
+
+    #[test]
+    fn hint_comes_from_the_marker() {
+        let dir =
+            std::env::temp_dir().join(format!("jabberwrite-update-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("package-manager");
+
+        assert_eq!(read_hint(&marker), None);
+
+        std::fs::write(&marker, "Update with: yay -Syu jabberwrite-bin\n").unwrap();
+        assert_eq!(
+            read_hint(&marker).as_deref(),
+            Some("Update with: yay -Syu jabberwrite-bin")
+        );
+
+        std::fs::write(&marker, "\n").unwrap();
+        assert_eq!(read_hint(&marker).as_deref(), Some(DEFAULT_HINT));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

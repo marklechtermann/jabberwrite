@@ -1,0 +1,44 @@
+# Maintainer: Jabberwrite contributors <https://github.com/marklechtermann/jabberwrite>
+#
+# Source of truth for the AUR package `jabberwrite-bin` (ADR 0010). The release workflow fills in
+# pkgver and the checksum and pushes this file to the AUR; edit it here, not in the AUR.
+
+pkgname=jabberwrite-bin
+pkgver=0.1.36
+pkgrel=1
+pkgdesc='Voice-to-text dictation for agentic coding'
+arch=('x86_64')
+url='https://github.com/marklechtermann/jabberwrite'
+license=('Apache-2.0')
+depends=(
+  'alsa-lib'
+  'cairo'
+  'dbus'
+  'gcc-libs'
+  'gdk-pixbuf2'
+  'glib2'
+  'glibc'
+  'gtk3'
+  'hicolor-icon-theme'
+  'libayatana-appindicator'  # tray icon; the app also loads libappindicator-gtk3 if present
+  'libsoup3'
+  'webkit2gtk-4.1'
+)
+optdepends=(
+  'xdg-desktop-portal: global hotkey and paste on Wayland'
+)
+provides=('jabberwrite')
+conflicts=('jabberwrite')
+options=('!strip' '!debug')
+source=("Jabberwrite_${pkgver}_amd64.deb::${url}/releases/download/v${pkgver}/Jabberwrite_${pkgver}_amd64.deb")
+sha256sums=('5641a097b8d9f4381013d474be1309fe5b48d22089287d71deabe93c917b2bec')
+noextract=("Jabberwrite_${pkgver}_amd64.deb")
+
+package() {
+  bsdtar -xOf "Jabberwrite_${pkgver}_amd64.deb" 'data.tar*' | bsdtar -xf - -C "$pkgdir"
+
+  # pacman owns this install, so the in-app updater stays off and shows this hint (ADR 0010).
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/jabberwrite/package-manager" <<'HINT'
+Jabberwrite was installed from the AUR package jabberwrite-bin. Update it with your AUR helper, for example: yay -Syu
+HINT
+}

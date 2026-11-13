@@ -22,7 +22,7 @@ If the text landed in the wrong window, tray → **Copy Last Text** puts the mos
 
 ### Updating
 
-Updates are checked only when you ask: tray → **Check for Updates…**, or **Settings… → Updates**. If a newer release exists, Jabberwrite offers to install it and restarts itself. Updates are signed; the app rejects anything not signed with the project key. Builds from before this feature (and the old `.msi`) must be updated by hand once, using the NSIS installer.
+Updates are checked only when you ask: tray → **Check for Updates…**, or **Settings… → Updates**. If a newer release exists, Jabberwrite offers to install it and restarts itself. Updates are signed; the app rejects anything not signed with the project key. Builds from before this feature (and the old `.msi`) must be updated by hand once, using the NSIS installer. Installs from a package manager, such as the AUR package, are updated by that package manager instead.
 
 ### Platform notes
 
@@ -30,6 +30,7 @@ Updates are checked only when you ask: tray → **Check for Updates…**, or **S
 - **Windows:** builds are unsigned; SmartScreen may warn on first launch.
 - **Linux, X11:** works out of the box.
 - **Linux, company machines:** prefer the `.deb`. An AppImage runs from a temporary mount under `/tmp`, and endpoint security tools (EDR) may flag it there as "process memory injection from a writable directory". The trigger is normal desktop work (overlay drawing, the paste keystroke), not injected code. The `.deb` installs to `/usr/bin` and gets the same updates.
+- **Arch Linux:** install the AUR package [`jabberwrite-bin`](https://aur.archlinux.org/packages/jabberwrite-bin), e.g. `yay -S jabberwrite-bin`, and update it with your AUR helper (`yay -Syu`). The in-app updater is turned off for this install and points to the AUR helper (ADR 0010).
 - **Linux, Wayland (GNOME, KDE):** pasting goes through the desktop's Remote Desktop portal: on the first dictation the desktop asks once whether Jabberwrite may control the keyboard, and it may show a remote-control indicator while Jabberwrite runs. The global hotkey works out of the box through the desktop's Global Shortcuts portal: on first start the desktop asks once to confirm the shortcut. That shortcut needs a regular key, so the default Ctrl+Super is offered as **Ctrl+Super+Space**; change it in the dialog or later in the desktop's settings (not in Jabberwrite's). For this, Jabberwrite writes a hidden `~/.local/share/applications/io.github.marklechtermann.jabberwrite.desktop`. To keep modifier-only shortcuts like Ctrl+Super, add your user to the group `input` (`sudo usermod -aG input $USER`), log out and back in (or reboot), and restart Jabberwrite; it then reads keyboard devices in `/dev/input` instead. The group only applies to new sessions: check that `id` lists `input`. Until then the log in `~/.local/share/jabberwrite/logs/` contains a line `no keyboard access …`. Any member of `input` can read all keyboards; the app reads keystrokes only to match the shortcut and does not store or send them. With `/dev/input`, shortcut letters match the US key positions, so on other layouts they follow the physical key. Compositors without the portal (sway and other wlroots) need the group `input`. The recording badge needs `zwlr_layer_shell_v1` (KDE, sway and other wlroots compositors); GNOME shows no badge.
 
 ## Configuration
@@ -88,6 +89,8 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD   # only if you set a password
 ```
 
 Paste the printed public key into `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Keep a backup of the private key: without it, installed apps can never update again.
+
+Each release also pushes the AUR package `jabberwrite-bin` from `packaging/aur/PKGBUILD` (ADR 0010). The job is skipped until it is set up once: create an AUR account, add its public SSH key there, register the package by pushing it once, then `gh secret set AUR_SSH_PRIVATE_KEY < ~/.ssh/aur`. Optionally set `gh variable set AUR_USERNAME` and `AUR_EMAIL` for the commit author.
 
 Planning lives in [`docs/`](docs/) ([ideas](docs/ideas.md), specs, ADRs); see [AGENTS.md](AGENTS.md).
 
