@@ -125,13 +125,7 @@ pub fn run() {
                 &[
                     &status,
                     &PredefinedMenuItem::separator(&handle)?,
-                    &MenuItem::with_id(
-                        &handle,
-                        "copy_last",
-                        "Copy Last Text",
-                        true,
-                        None::<&str>,
-                    )?,
+                    &MenuItem::with_id(&handle, "copy_last", "Copy Last Text", true, None::<&str>)?,
                     &MenuItem::with_id(&handle, "settings", "Settings…", true, None::<&str>)?,
                     &MenuItem::with_id(
                         &handle,

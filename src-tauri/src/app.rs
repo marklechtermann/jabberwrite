@@ -451,7 +451,11 @@ pub fn autostart_enabled(handle: tauri::AppHandle) -> Result<bool, String> {
 pub fn set_autostart(handle: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let launcher = handle.autolaunch();
-    let result = if enabled { launcher.enable() } else { launcher.disable() };
+    let result = if enabled {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
     result.map_err(|e| {
         tracing::error!("autostart: {e}");
         format!("Cannot change autostart: {e}")
