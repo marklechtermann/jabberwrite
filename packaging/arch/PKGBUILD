@@ -1,0 +1,39 @@
+# Arch package for Jabberwrite (ADR 0010). The release workflow sets pkgver and the checksum,
+# builds the package from the release .deb and attaches it to the GitHub release.
+
+pkgname=jabberwrite
+pkgver=0.1.36
+pkgrel=1
+pkgdesc='Voice-to-text dictation for agentic coding'
+arch=('x86_64')
+url='https://github.com/marklechtermann/jabberwrite'
+license=('Apache-2.0')
+depends=(
+  'alsa-lib'
+  'cairo'
+  'dbus'
+  'gcc-libs'
+  'gdk-pixbuf2'
+  'glib2'
+  'glibc'
+  'gtk3'
+  'hicolor-icon-theme'
+  'libayatana-appindicator'  # tray icon; the app also loads libappindicator-gtk3 if present
+  'libsoup3'
+  'polkit'                   # pkexec, for in-app updates
+  'webkit2gtk-4.1'
+)
+optdepends=(
+  'xdg-desktop-portal: global hotkey and paste on Wayland'
+)
+options=('!strip' '!debug')
+source=("Jabberwrite_${pkgver}_amd64.deb::${url}/releases/download/v${pkgver}/Jabberwrite_${pkgver}_amd64.deb")
+sha256sums=('5641a097b8d9f4381013d474be1309fe5b48d22089287d71deabe93c917b2bec')
+noextract=("Jabberwrite_${pkgver}_amd64.deb")
+
+package() {
+  bsdtar -xOf "Jabberwrite_${pkgver}_amd64.deb" 'data.tar*' | bsdtar -xf - -C "$pkgdir"
+
+  # Tells the in-app updater to fetch the Arch package and install it with pacman (ADR 0010).
+  echo pacman | install -Dm644 /dev/stdin "$pkgdir/usr/share/jabberwrite/package-format"
+}
