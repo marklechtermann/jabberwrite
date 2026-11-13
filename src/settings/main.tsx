@@ -13,6 +13,7 @@ type AppInfo = {
   history_path: string;
   clear_history_on_exit: boolean;
   copy_to_clipboard: boolean;
+  sound_cues: boolean;
   config_error: string | null;
   status: string;
   shortcut: string;
@@ -405,6 +406,11 @@ function Settings() {
       .then(() => setInfo({ ...info, copy_to_clipboard: enabled }))
       .catch((e) => setMessage({ text: String(e), error: true }));
 
+  const saveSoundCues = (enabled: boolean) =>
+    invoke("save_sound_cues", { enabled })
+      .then(() => setInfo({ ...info, sound_cues: enabled }))
+      .catch((e) => setMessage({ text: String(e), error: true }));
+
   // The checkbox always shows the real OS state, also after a failed toggle.
   const saveAutostart = (enabled: boolean) =>
     invoke("set_autostart", { enabled })
@@ -460,6 +466,16 @@ function Settings() {
               <label className="check">
                 <input type="checkbox" checked={autostart} onChange={(e) => saveAutostart(e.target.checked)} />
                 Start Jabberwrite when I log in
+              </label>
+            </section>
+          )}
+
+          {topic === "general" && (
+            <section>
+              <h2>Sound</h2>
+              <label className="check">
+                <input type="checkbox" checked={info.sound_cues} onChange={(e) => saveSoundCues(e.target.checked)} />
+                Play a sound when recording starts and stops
               </label>
             </section>
           )}

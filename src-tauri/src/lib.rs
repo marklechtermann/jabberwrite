@@ -1,6 +1,7 @@
 mod app;
 mod audio;
 mod config;
+mod cue;
 mod history;
 mod hotkey;
 mod keys;
@@ -87,6 +88,7 @@ pub fn run() {
             app::copy_text,
             app::save_clear_history_on_exit,
             app::save_copy_to_clipboard,
+            app::save_sound_cues,
             app::autostart_enabled,
             app::set_autostart,
             app::open_url,
