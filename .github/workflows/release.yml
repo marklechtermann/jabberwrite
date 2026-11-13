@@ -111,8 +111,72 @@ jobs:
           # All matrix jobs merge into one latest.json and can collide; see the check in publish-release.
           retryAttempts: 2
 
-  publish-release:
+  # Arch package (ADR 0010): repackage the .deb, sign it for the in-app updater and add it to
+  # latest.json as linux-x86_64-pacman. Runs after all builds, so latest.json is no longer contended.
+  build-arch:
     needs: [create-release, build]
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+      RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed github-cli jq nodejs npm
+
+      - uses: actions/checkout@v4
+
+      # The release is still a draft, so assets are fetched by ID, not by tag.
+      - name: Download .deb and latest.json
+        run: |
+          fetch() {
+            id=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate -q ".[] | select(.name == \"$1\") | .id")
+            [ -n "$id" ] || { echo "::error::$1 is missing from the release"; exit 1; }
+            gh api -H "Accept: application/octet-stream" "repos/$GH_REPO/releases/assets/$id" > "$2"
+          }
+          fetch "Jabberwrite_${VERSION}_amd64.deb" "packaging/arch/Jabberwrite_${VERSION}_amd64.deb"
+          fetch latest.json latest.json
+
+      - name: Build package
+        run: |
+          # makepkg refuses to run as root; the runtime dependencies are not needed to repackage.
+          useradd -m builder
+          cp -r packaging/arch /tmp/arch
+          cd /tmp/arch
+          sha=$(sha256sum "Jabberwrite_${VERSION}_amd64.deb" | cut -d' ' -f1)
+          sed -i -e "s/^pkgver=.*/pkgver=$VERSION/" -e "s/^pkgrel=.*/pkgrel=1/" -e "s/^sha256sums=.*/sha256sums=('$sha')/" PKGBUILD
+          chown -R builder .
+          runuser -u builder -- makepkg --nodeps --noconfirm
+          mv "jabberwrite-${VERSION}-1-x86_64.pkg.tar.zst" "$GITHUB_WORKSPACE/Jabberwrite_${VERSION}_x86_64.pkg.tar.zst"
+
+      - name: Sign package
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm ci
+          npx tauri signer sign "Jabberwrite_${VERSION}_x86_64.pkg.tar.zst"
+
+      - name: Upload package and update latest.json
+        run: |
+          pkg="Jabberwrite_${VERSION}_x86_64.pkg.tar.zst"
+          upload() {
+            gh api --method POST -H "Content-Type: application/octet-stream" \
+              "https://uploads.github.com/repos/$GH_REPO/releases/$RELEASE_ID/assets?name=$1" --input "$1" > /dev/null
+          }
+          upload "$pkg"
+          upload "$pkg.sig"
+          jq --arg url "https://github.com/$GH_REPO/releases/download/v$VERSION/$pkg" --rawfile sig "$pkg.sig" \
+            '.platforms["linux-x86_64-pacman"] = {url: $url, signature: $sig}' latest.json > latest.new.json
+          mv latest.new.json latest.json
+          old=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate -q '.[] | select(.name == "latest.json") | .id')
+          gh api --method DELETE "repos/$GH_REPO/releases/assets/$old"
+          upload latest.json
+
+  publish-release:
+    needs: [create-release, build, build-arch]
     runs-on: ubuntu-latest
     steps:
       # Concurrent jobs can overwrite each other's entries in latest.json. Never publish an
@@ -137,7 +201,7 @@ jobs:
                 headers: { accept: "application/octet-stream" },
               });
               const platforms = Object.keys(JSON.parse(Buffer.from(res.data).toString()).platforms);
-              const missing = ["windows-x86_64", "linux-x86_64", "darwin-aarch64"].filter((p) => !platforms.includes(p));
+              const missing = ["windows-x86_64", "linux-x86_64", "linux-x86_64-pacman", "darwin-aarch64"].filter((p) => !platforms.includes(p));
               if (missing.length) core.setFailed(`latest.json lacks platforms: ${missing.join(", ")}. Re-run the failed build jobs.`);
             }
 

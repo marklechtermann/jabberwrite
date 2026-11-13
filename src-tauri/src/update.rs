@@ -1,5 +1,7 @@
 //! In-app updates from GitHub Releases (ADR 0005). Checks only run on request, never in the background.
+//! Installs from the Arch package update through `pacman` (ADR 0010).
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
@@ -40,6 +42,45 @@ impl State {
 fn set_status(app: &App, status: Status) {
     *app.update.status.lock().unwrap() = status.clone();
     let _ = app.handle.emit("update", status);
+}
+
+/// The package format of this install, when it differs from what the binary was bundled as.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PackageFormat {
+    /// The Arch package, a repackaged `.deb`: the updater would otherwise try `dpkg`.
+    Pacman,
+}
+
+/// `latest.json` entry for the Arch package; the release workflow adds it.
+const PACMAN_TARGET: &str = "linux-x86_64-pacman";
+
+/// A package ships this file next to the binary's prefix, e.g. `/usr/share/jabberwrite/package-format`
+/// for `/usr/bin/jabberwrite` (ADR 0010).
+fn marker_path(exe: &Path) -> Option<PathBuf> {
+    Some(
+        exe.parent()?
+            .parent()?
+            .join("share/jabberwrite/package-format"),
+    )
+}
+
+fn read_format(marker: &Path) -> Option<PackageFormat> {
+    match std::fs::read_to_string(marker).ok()?.trim() {
+        "pacman" => Some(PackageFormat::Pacman),
+        other => {
+            tracing::warn!("unknown package format {other:?} in {}", marker.display());
+            None
+        }
+    }
+}
+
+fn package_format() -> Option<PackageFormat> {
+    // An AppImage runs from its own mount and always updates itself.
+    if !cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some() {
+        return None;
+    }
+    let exe = std::env::current_exe().ok()?;
+    read_format(&marker_path(&exe)?)
 }
 
 /// Dev builds report `…-dev+sha` and would see every release as an update.
@@ -85,8 +126,11 @@ async fn find_update(app: &App) -> Result<Option<Update>, String> {
         return Err("Updates are only available in release builds.".into());
     }
     let handle = app.handle.clone();
-    app.handle
-        .updater_builder()
+    let mut builder = app.handle.updater_builder();
+    if package_format() == Some(PackageFormat::Pacman) {
+        builder = builder.target(PACMAN_TARGET);
+    }
+    builder
         // The Windows installer replaces our files, so the app exits right after launching it
         // without running any cleanup; hide the tray icon to avoid a ghost icon.
         .on_before_exit(move || {
@@ -116,21 +160,34 @@ pub async fn install(app: &Arc<App>) -> Result<(), String> {
 
     let mut downloaded = 0u64;
     let mut last_percent = None;
-    let result = update
-        .download_and_install(
-            |chunk, total| {
-                downloaded += chunk as u64;
-                let percent = total.map(|t| (downloaded * 100 / t.max(1)).min(100));
-                if percent != last_percent {
-                    last_percent = percent;
-                    if let Some(p) = percent {
-                        app.set_status(&format!("Downloading update {p}%"));
-                    }
-                }
-            },
-            || app.set_status("Installing update"),
-        )
-        .await;
+    let on_chunk = |chunk: usize, total: Option<u64>| {
+        downloaded += chunk as u64;
+        let percent = total.map(|t| (downloaded * 100 / t.max(1)).min(100));
+        if percent != last_percent {
+            last_percent = percent;
+            if let Some(p) = percent {
+                app.set_status(&format!("Downloading update {p}%"));
+            }
+        }
+    };
+    let on_finish = || app.set_status("Installing update");
+    let result = match package_format() {
+        // `download` verifies the signature; the updater cannot install a pacman package itself.
+        Some(PackageFormat::Pacman) => match update.download(on_chunk, on_finish).await {
+            Ok(bytes) => {
+                let version = update.version.clone();
+                tauri::async_runtime::spawn_blocking(move || install_pacman(&bytes, &version))
+                    .await
+                    .map_err(|e| e.to_string())
+                    .and_then(|r| r)
+            }
+            Err(e) => Err(e.to_string()),
+        },
+        None => update
+            .download_and_install(on_chunk, on_finish)
+            .await
+            .map_err(|e| e.to_string()),
+    };
 
     match result {
         // Windows never gets here: the installer takes over and the app exits.
@@ -138,14 +195,60 @@ pub async fn install(app: &Arc<App>) -> Result<(), String> {
             tracing::info!("update installed, restarting");
             app.handle.restart()
         }
-        Err(e) => {
-            let message = e.to_string();
+        Err(message) => {
             tracing::error!("update failed: {message}");
             app.end_update();
             app.set_status("Update failed");
-            set_status(app, Status::Error { message });
-            Err(e.to_string())
+            set_status(
+                app,
+                Status::Error {
+                    message: message.clone(),
+                },
+            );
+            Err(message)
         }
+    }
+}
+
+#[cfg(not(unix))]
+fn install_pacman(_bytes: &[u8], _version: &str) -> Result<(), String> {
+    unreachable!("package_format() is None outside Linux")
+}
+
+/// Install a verified Arch package with `pkexec pacman -U`, like the updater does for `.deb`.
+#[cfg(unix)]
+fn install_pacman(bytes: &[u8], version: &str) -> Result<(), String> {
+    use std::os::unix::fs::DirBuilderExt;
+
+    // A fresh directory only we can write to: root installs whatever file lies there.
+    let dir = std::env::temp_dir().join(format!("jabberwrite-update-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&dir)
+        .map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
+    let package = dir.join(format!("jabberwrite-{version}-x86_64.pkg.tar.zst"));
+    let result = std::fs::write(&package, bytes)
+        .map_err(|e| format!("Could not write {}: {e}", package.display()))
+        .and_then(|()| run_pacman(&package));
+    let _ = std::fs::remove_dir_all(&dir);
+    result
+}
+
+#[cfg(unix)]
+fn run_pacman(package: &Path) -> Result<(), String> {
+    let status = std::process::Command::new("pkexec")
+        .args(["pacman", "-U", "--noconfirm"])
+        .arg(package)
+        .status()
+        .map_err(|e| format!("Could not run pkexec: {e}"))?;
+    match status.code() {
+        Some(0) => Ok(()),
+        // pkexec: 126 = authentication dismissed, 127 = not authorized or no polkit agent.
+        Some(126) | Some(127) => {
+            Err("Installing the update needs administrator rights, which were not granted.".into())
+        }
+        _ => Err(format!("pacman could not install the update ({status}).")),
     }
 }
 
@@ -219,4 +322,37 @@ pub async fn check_update(app: tauri::State<'_, Arc<App>>) -> Result<Status, Str
 #[tauri::command]
 pub async fn install_update(app: tauri::State<'_, Arc<App>>) -> Result<(), String> {
     install(&app).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marker_sits_under_the_install_prefix() {
+        assert_eq!(
+            marker_path(Path::new("/usr/bin/jabberwrite")),
+            Some(PathBuf::from("/usr/share/jabberwrite/package-format"))
+        );
+        assert_eq!(
+            marker_path(Path::new("/usr/local/bin/jabberwrite")),
+            Some(PathBuf::from("/usr/local/share/jabberwrite/package-format"))
+        );
+    }
+
+    #[test]
+    fn format_comes_from_the_marker() {
+        let dir =
+            std::env::temp_dir().join(format!("jabberwrite-format-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("package-format");
+
+        assert_eq!(read_format(&marker), None);
+        std::fs::write(&marker, "pacman\n").unwrap();
+        assert_eq!(read_format(&marker), Some(PackageFormat::Pacman));
+        std::fs::write(&marker, "rpm\n").unwrap();
+        assert_eq!(read_format(&marker), None);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
