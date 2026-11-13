@@ -47,7 +47,8 @@ Settings are stored as JSON and can be edited by hand (restart to apply):
   "paste_shortcut": "Ctrl+V",
   "model_path": null,
   "clear_history_on_exit": false,
-  "copy_to_clipboard": false
+  "copy_to_clipboard": false,
+  "sound_cues": false
 }
 ```
 
@@ -55,6 +56,7 @@ Settings are stored as JSON and can be edited by hand (restart to apply):
 - `paste_shortcut`: keystroke used to paste, e.g. `Ctrl+Shift+V` for Linux terminals.
 - `clear_history_on_exit`: delete the recognition history when Jabberwrite quits (also in Settings).
 - `copy_to_clipboard`: keep the recognized text in the clipboard after pasting (also in Settings). When `false`, the previous clipboard text is restored; non-text clipboard content (e.g. images) cannot be restored.
+- `sound_cues`: play a short rising chime when recording starts and a falling one when it stops (also in Settings).
 
 Every recognized text is also appended to `history.jsonl` in the data directory (`~/.local/share/jabberwrite/` on Linux, `%LOCALAPPDATA%\jabberwrite\` on Windows, `~/Library/Application Support/jabberwrite/` on macOS), one JSON object per line. Settings lists the entries with a Copy button.
 - `model_path`: directory with `encoder.int8.onnx`, `decoder.int8.onnx`, `joiner.int8.onnx` and `tokens.txt`, to use your own copy of the model.

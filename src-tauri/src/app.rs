@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::audio::Recording;
 use crate::config::Config;
+use crate::cue::{self, Cue};
 use crate::history::{Entry, History};
 use crate::keys::Shortcut;
 use crate::paste::Clipboard;
@@ -177,6 +178,7 @@ impl App {
                 *self.recording.lock().unwrap() = Some((rec, paste));
                 *phase = Phase::Recording;
                 overlay::show(&self.handle, overlay::State::Recording);
+                self.cue(Cue::Start);
             }
             Err(e) => self.fail(e),
         }
@@ -207,7 +209,10 @@ impl App {
     }
 
     fn transcribe(&self, rec: Recording, paste: bool) -> Result<Option<String>, String> {
-        let audio = rec.stop()?;
+        let audio = rec.stop();
+        // After the microphone is closed, so the cue is not recorded.
+        self.cue(Cue::Stop);
+        let audio = audio?;
         if audio.duration_secs() < MIN_RECORDING_SECS {
             return Ok(None);
         }
@@ -238,6 +243,12 @@ impl App {
             self.paste_text(&text)?;
         }
         Ok(Some(text))
+    }
+
+    fn cue(&self, cue: Cue) {
+        if self.config.lock().unwrap().sound_cues {
+            cue::play(cue);
+        }
     }
 
     /// Copy to the clipboard and send the paste shortcut to the focused window.
@@ -343,6 +354,7 @@ pub struct AppInfo {
     history_path: String,
     clear_history_on_exit: bool,
     copy_to_clipboard: bool,
+    sound_cues: bool,
     config_error: Option<String>,
     status: String,
     shortcut: String,
@@ -363,6 +375,7 @@ pub fn app_info(app: State) -> AppInfo {
         history_path: app.paths.history.display().to_string(),
         clear_history_on_exit: config.clear_history_on_exit,
         copy_to_clipboard: config.copy_to_clipboard,
+        sound_cues: config.sound_cues,
         config_error: app.config_error.clone(),
         status: app.status(),
         shortcut: config.shortcut,
@@ -414,6 +427,19 @@ pub fn save_copy_to_clipboard(app: State, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub fn save_sound_cues(app: State, enabled: bool) -> Result<(), String> {
+    if app.config_error.is_some() {
+        return Err("The config file is invalid. Fix it by hand and restart.".into());
+    }
+    let mut config = app.config.lock().unwrap();
+    let mut updated = config.clone();
+    updated.sound_cues = enabled;
+    crate::config::save(&app.paths.config, &updated)?;
+    *config = updated;
+    Ok(())
+}
+
 /// The OS autostart entry is the single source of truth (not stored in config.json).
 #[tauri::command]
 pub fn autostart_enabled(handle: tauri::AppHandle) -> Result<bool, String> {
@@ -425,7 +451,11 @@ pub fn autostart_enabled(handle: tauri::AppHandle) -> Result<bool, String> {
 pub fn set_autostart(handle: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let launcher = handle.autolaunch();
-    let result = if enabled { launcher.enable() } else { launcher.disable() };
+    let result = if enabled {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
     result.map_err(|e| {
         tracing::error!("autostart: {e}");
         format!("Cannot change autostart: {e}")
